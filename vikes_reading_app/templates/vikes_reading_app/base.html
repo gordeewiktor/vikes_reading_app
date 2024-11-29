@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Vike's Reading App{% endblock %}</title>
+        {% load static %}
+        <link rel="stylesheet" href="{% static 'css/style.css' %}">
+        <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <header>
+            <nav>
+                <ul class="nav-bar">
+                    <li><a class="active" href="/">Home</a></li>
+                    <li><a href="/profile">Profile</a></li>
+                    <li><a href="/my-stories">My Stories</a></li>
+                    <li><a href="/logout">Logout</a></li>
+                    <li><a href="/login">Login</a></li>
+                    <li><a href="/register">Register</a></li>
+                </ul>
+            </nav>
+        </header>
+        <main>
+            {% block content %}
+            <!--The place for the page specific content-->
+            {% endblock %}
+        </main>
+        <footer>
+            <p>&copy; 2024 Vike's Reading App. All rights reserved</p>
+        </footer>
+    </body>
+</html>
