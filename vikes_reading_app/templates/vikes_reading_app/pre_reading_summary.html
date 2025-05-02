@@ -1,0 +1,60 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}Pre-Reading Summary{% endblock %}
+
+{% block content %}
+{# Pre-Reading Summary - Display student's score and correct answers #}
+<h2>Pre-Reading Summary for "{{ story.title }}"</h2>
+
+<p>Score: {{ correct_answers }} out of {{ total_questions }}</p>
+
+<ul>
+    {# List of pre-reading questions with the correct answers shown #}
+    {% for question in questions %}
+        <li>
+            <strong>{{ question.text }}</strong><br>
+            ✅ Correct Answer: <em>{{ question.correct_answer }}</em>
+        </li>
+    {% endfor %}
+</ul>
+
+{# Start Reading Button - Allows student to proceed to the reading section #}
+<form action="{% url 'story_read_student' story.id %}" method="get">
+    <button type="submit" class="btn btn-primary" id="start-reading-btn">Start Reading</button>
+</form>
+
+{# JavaScript - Tracks how long the student spent on the summary page and saves it before proceeding #}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let startTime = Date.now();
+
+        const readingBtn = document.getElementById("start-reading-btn");
+        if (readingBtn) {
+            readingBtn.addEventListener("click", function (event) {
+                const endTime = Date.now();
+                const timeSpentSeconds = Math.floor((endTime - startTime) / 1000);
+
+                fetch("{% url 'save_pre_reading_time' story.id %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ time_spent: timeSpentSeconds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Pre-reading time saved!", data);
+                    window.location.href = readingBtn.form.action;
+                })
+                .catch(error => {
+                    console.error("Error saving time:", error);
+                    window.location.href = readingBtn.form.action;
+                });
+
+                event.preventDefault(); // Prevent default link behavior until we finish logging
+            });
+        }
+    });
+</script>
+{% endblock %}

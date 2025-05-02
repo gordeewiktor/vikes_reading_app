@@ -1,0 +1,18 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Delete Pre-Reading Exercise #}
+{% block title %}
+Delete Pre-Reading Exercise
+{% endblock %}
+
+{# Confirmation Section - Ask user to confirm deletion of the pre-reading exercise #}
+{% block content %}
+<h1>Are you sure you want to delete this pre-reading exercise?</h1>
+<p><strong>{{ exercise.question_text }}</strong></p>
+{# Deletion Form - Confirm deletion or cancel the action #}
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a href="{% url 'manage_questions' exercise.story.id %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

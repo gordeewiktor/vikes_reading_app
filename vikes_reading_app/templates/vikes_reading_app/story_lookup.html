@@ -1,0 +1,31 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}
+Story Lookup - "{{ story.title }}"
+{% endblock %}
+
+{% block content %}
+    {# Story Lookup Section - Display the story content with a limited time to review #}
+    <section aria-labelledby="lookup-heading">
+        <h1 id="lookup-heading">Story Lookup</h1>
+        <p>You have limited time to review the story.</p>
+
+        <div class="story-content">
+            <h2>{{ story.title }}</h2>
+            <p>{{ story.content|linebreaks }}</p>
+        </div>
+    </section>
+
+    {# Return Button - Allow student to return to post-reading question manually #}
+    <form method="POST" action="{% url 'return_to_question' story_id question_index %}">
+        {% csrf_token %}
+        <button type="submit">Return Now</button>
+    </form>
+
+    {# JavaScript - Automatically redirect to post-reading question after time limit #}
+    <script>
+        setTimeout(function () {
+            window.location.href = "{% url 'post_reading_read' story_id question_index %}";
+        }, {{ time_limit }} * 1000);
+    </script>
+{% endblock %}

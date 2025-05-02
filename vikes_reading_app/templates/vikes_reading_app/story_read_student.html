@@ -1,0 +1,53 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}
+Reading - {{ story.title }}
+{% endblock %}
+
+{% block content %}
+{# Reading Section - Display the story content and allow student to proceed to post-reading questions #}
+<div class="story-container">
+    <h2>{{ story.title }}</h2>
+    <p class="story-text">{{ story.content|safe }}</p>
+    <button id="continue-to-post-reading">Continue to Questions</button>
+</div>
+
+{# JavaScript - Track reading time and save it when the student proceeds to post-reading questions #}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let startTime = Date.now();
+
+        const nextButton = document.getElementById("continue-to-post-reading");
+
+        if (nextButton) {
+            nextButton.addEventListener("click", function () {
+                const endTime = Date.now();
+                const timeSpentSeconds = Math.floor((endTime - startTime) / 1000);
+
+                // Send reading time to the server via AJAX
+                fetch("{% url 'save_reading_time' story.id %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ time_spent: timeSpentSeconds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Time saved!", data);
+                    // Redirect to post-reading questions after saving time
+                    window.location.href = "{% url 'post_reading_read' story.id 0 %}";
+                })
+                .catch(error => {
+                    console.error("Error saving time:", error);
+                    // Redirect to post-reading questions after saving time
+                    window.location.href = "{% url 'post_reading_read' story.id 0 %}";
+                });
+            });
+        } else {
+            console.warn("Continue button not found!");
+        }
+    });
+</script>
+{% endblock %}

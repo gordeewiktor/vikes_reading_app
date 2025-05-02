@@ -1,0 +1,53 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}Profile - Vike's Reading{% endblock %}
+
+{% block content %}
+    {# User Profile Section - Display username and editable bio #}
+    <h1>Your Profile</h1>
+
+    <!-- Display the Username -->
+    <p><strong>Username:</strong> {{ user.username }}</p>
+
+    {# Messages Section - Display any success or error messages #}
+    {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="POST" action="{% url 'profile' %}">
+        {% csrf_token %}
+        <fieldset>
+            <legend>Profile Information</legend>
+            <div class="form-group">
+                <label for="bio">Bio:</label>
+                <textarea id="bio" name="bio" rows="4" aria-label="User bio">{{ user.bio }}</textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </fieldset>
+    </form>
+    {# Student Progress Section - Shown only for teachers, lists all students and their story progress #}
+    {% if students_progress %}
+        <h2>Student Progress</h2>
+        {% for student, progresses in students_progress.items %}
+            <h3>{{ student.username }}</h3>
+            <ul>
+                {% for progress in progresses %}
+                    <li>
+                        <strong>Story:</strong> {{ progress.story.title }}<br>
+                        <strong>Pre-Reading:</strong> {{ progress.pre_reading_score }} correct, {{ progress.pre_reading_time }} seconds<br>
+                        <strong>Reading:</strong> {{ progress.reading_time }} seconds<br>
+                        <strong>Post-Reading:</strong> {{ progress.post_reading_score }} correct, {{ progress.post_reading_time }} seconds
+                    </li>
+                {% endfor %}
+            </ul>
+            <hr>
+        {% endfor %}
+    {% endif %}
+{% endblock %}

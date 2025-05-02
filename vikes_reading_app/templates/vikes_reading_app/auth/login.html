@@ -1,0 +1,20 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Login Page #}
+{% block title %}
+Login - Vike's Reading
+{% endblock %}
+
+{% block content %}
+    <h1>Login to your account</h1>
+    {# Login Form - Allow existing users to log in with username and password #}
+    <form method="POST" action="{% url 'login' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="form-actions">
+            <button type="submit">Login</button>
+        </div>
+        {# Registration Link - Redirect users to the registration page if they don't have an account #}
+        <p>Don't have an account? <a href="{% url 'register' %}">Register here</a></p>
+    </form>
+{% endblock %}

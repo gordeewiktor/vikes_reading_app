@@ -3,6 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        {# Page Title - Dynamically set by child templates #}
         <title>{% block title %}Vike's Reading App{% endblock %}</title>
         {% load static %}
         <link rel="stylesheet" href="{% static 'css/style.css' %}">
@@ -10,23 +11,43 @@
     </head>
     <body>
         <header>
+            {# Navigation Bar - Display menu options based on user authentication and role #}
             <nav>
                 <ul class="nav-bar">
-                    <li><a class="active" href="/">Home</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/my-stories">My Stories</a></li>
-                    <li><a href="/logout">Logout</a></li>
-                    <li><a href="/login">Login</a></li>
-                    <li><a href="/register">Register</a></li>
+                    <li>
+                        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+                    </li>
+                    {% if user.is_authenticated %}
+                        <li>
+                            <a href="{% url 'profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">Profile</a>
+                        </li>
+                        {% if user.role == 'teacher' %}
+                            <li>
+                                <a href="{% url 'my_stories' %}" class="{% if request.resolver_match.url_name == 'my_stories' %}active{% endif %}">My Stories</a>
+                            </li>
+                        {% endif %}
+                        <li>
+                            <a href="{% url 'logout_confirm' %}" class="{% if request.resolver_match.url_name == 'logout_confirm' %}active{% endif %}">Logout</a>
+                        </li>
+                    {% else %}
+                        <li>
+                            <a href="{% url 'login' %}" class="{% if request.resolver_match.url_name == 'login' %}active{% endif %}">Login</a>
+                        </li>
+                        <li>
+                            <a href="{% url 'register' %}" class="{% if request.resolver_match.url_name == 'register' %}active{% endif %}">Register</a>
+                        </li>
+                    {% endif %}
                 </ul>
             </nav>
         </header>
         <main>
+            {# Main Content - Page specific content will be injected here by child templates #}
             {% block content %}
             <!--The place for the page specific content-->
             {% endblock %}
         </main>
         <footer>
+            {# Footer - Display application footer #}
             <p>&copy; 2024 Vike's Reading App. All rights reserved</p>
         </footer>
     </body>

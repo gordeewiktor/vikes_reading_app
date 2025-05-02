@@ -1,0 +1,86 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}
+Pre-Reading - {{ story.title }}
+{% endblock %}
+
+{# Pre-Reading Exercise - Display current exercise question and audio if available #}
+{% block content %}
+<h2>Pre-Reading Exercise for "{{ story.title }}"</h2>
+
+<p><strong>{{ exercise.question_text }}</strong></p>
+
+{% if exercise.audio_file %}
+    <audio controls>
+        <source src="{{ exercise.audio_file.url }}" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+{% endif %}
+
+{# Answer Options - Allow student to select an answer and automatically proceed after selection #}
+<label class="option">
+    <input type="radio" name="selected_answer" value="{{ exercise.option_1 }}">
+    {{ exercise.option_1 }}
+</label><br>
+
+<label class="option">
+    <input type="radio" name="selected_answer" value="{{ exercise.option_2 }}">
+    {{ exercise.option_2 }}
+</label><br>
+
+<input type="hidden" id="exercise_id" value="{{ exercise.id }}">
+<input type="hidden" id="story_id" value="{{ story.id }}">
+
+{# JavaScript - Handles answer selection, sends answer to backend, and auto-advances to next question #}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const options = document.querySelectorAll("input[name='selected_answer']");
+        const exerciseId = document.getElementById("exercise_id").value;
+        const storyId = document.getElementById("story_id").value;
+
+        options.forEach(option => {
+            option.addEventListener("change", function () {
+                const selectedAnswer = this.value;
+
+                // Disable further selections
+                options.forEach(opt => opt.disabled = true);
+
+                // Send selection to backend via AJAX
+                fetch(`/pre-reading/${storyId}/submit/`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: new URLSearchParams({
+                        "exercise_id": exerciseId,
+                        "selected_answer": selectedAnswer
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.correct) {
+                        this.parentElement.style.color = "green"; // Correct answer
+                    } else {
+                        this.parentElement.style.color = "red"; // Wrong answer
+                    }
+
+                    // Wait 3 seconds then move to next question
+                    setTimeout(() => {
+                        window.location.href = data.next_url;
+                    }, 1000);
+                });
+            });
+        });
+    });
+</script>
+
+{# Styles - Simple styling for answer options #}
+<style>
+    .option {
+        font-size: 18px;
+        cursor: pointer;
+    }
+</style>
+
+{% endblock %}

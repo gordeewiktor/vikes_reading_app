@@ -1,0 +1,36 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title and Story Title #}
+{% block title %}
+Continue Story or Retry?
+{% endblock %}
+
+{% block content %}
+<h1>{{ story.title }}</h1>
+
+<h2>Progress Overview</h2>
+
+{# Display Pre-Reading Score if available, otherwise show message #}
+{% if pre_total_questions %}
+    <p>Pre-Reading Score: <strong>{{ pre_correct_answers }} / {{ pre_total_questions }}</strong></p>
+{% else %}
+    <p>No pre-reading exercises for this story.</p>
+{% endif %}
+
+{# Display Post-Reading Score if available, otherwise show message #}
+{% if post_total_questions %}
+    <p>Post-Reading Score: <strong>{{ post_correct_answers }} / {{ post_total_questions }}</strong></p>
+{% else %}
+    <p>No post-reading questions for this story.</p>
+{% endif %}
+
+{# Action Buttons - Retry cycle or exit to home #}
+<div class="choice-buttons">
+    <form method="POST" action="{% url 'reset_progress' story.id %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Retry Entire Cycle</button>
+    </form>
+    <br>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Exit to Home</a>
+</div>
+{% endblock %}

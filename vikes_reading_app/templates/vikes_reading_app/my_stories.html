@@ -1,0 +1,39 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Display list of stories created by the teacher #}
+{% block title %}
+My Stories - Vike's Reading
+{% endblock %}
+
+{% block content %}
+    <h1>My Stories</h1>
+    {# Button - Link to create a new story #}
+    <a href="/create-story" class="btn btn-primary">Create New Story</a>
+    {# Stories Table - List all stories with title, description, and actions (edit, manage, delete) #}
+    <table class="story-table">
+        <thead>
+            <tr>
+                <th scope="col">Title</th>
+                <th scope="col">Description</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for story in stories %}
+                <tr>
+                    <td><a href="{% url 'story_read_teacher' story.id %}">{{ story.title }}</a></td>
+                    <td>{{ story.description|truncatechars:50 }}</td>
+                    <td>
+                        <a href="{% url 'story_edit' story.id %}" class="btn btn-secondary">Edit</a>
+                        <a href="{% url 'manage_questions' story.id %}" class="btn btn-primary">Manage Questions</a>
+                        <a href="{% url 'story_delete' story.id %}" class="btn btn-danger">Delete</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4">You have not created any stories yet.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

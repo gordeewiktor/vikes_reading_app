@@ -1,0 +1,91 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Edit Pre-Reading Exercise #}
+{% block title %}
+Edit Pre-Reading Exercise
+{% endblock %}
+
+{% block content %}
+<h1>Edit Pre-Reading Exercise</h1>
+
+{# Edit Exercise Form - Allows teachers to edit question text, options, correct answer and upload/change audio file #}
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group">
+        <label for="id_question_text">Question Text:</label>
+        {{ form.question_text }}
+    </div>
+
+    <div class="form-group">
+        <label for="id_option_1">Option 1:</label>
+        {{ form.option_1 }}
+    </div>
+
+    <div class="form-group">
+        <label for="id_option_2">Option 2:</label>
+        {{ form.option_2 }}
+    </div>
+
+    <div class="form-group">
+        <label for="id_is_option_1_correct">Is Option 1 Correct:</label>
+        {{ form.is_option_1_correct }}
+    </div>
+
+    <div class="form-group">
+        <label for="id_is_option_2_correct">Is Option 2 Correct:</label>
+        {{ form.is_option_2_correct }}
+    </div>
+
+    <div class="form-group">
+        <label for="id_audio_file">Audio File:</label>
+        {% if form.audio_file.value %}
+            <p>{{ form.audio_file.value.name|cut:"pre_reading_audio/" }}</p>
+        {% endif %}
+        <div class="custom-file-upload">
+            <label for="id_audio_file" class="btn btn-secondary">Change File</label>
+            <input type="file" name="audio_file" id="id_audio_file" class="form-control-file" style="display: none;">
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <button type="button" class="btn btn-secondary" onclick="window.location.href='{% url 'manage_questions' story.id %}'">Cancel</button>
+</form>
+{# JavaScript - Handle correct option checkbox logic and audio file display #}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const checkbox1 = document.getElementById("id_is_option_1_correct");
+        const checkbox2 = document.getElementById("id_is_option_2_correct");
+
+        function updateCheckboxState() {
+            if (checkbox1.checked) {
+                checkbox2.disabled = true;
+            } else {
+                checkbox2.disabled = false;
+            }
+
+            if (checkbox2.checked) {
+                checkbox1.disabled = true;
+            } else {
+                checkbox1.disabled = false;
+            }
+        }
+
+        // Run on load
+        updateCheckboxState();
+
+        // Add change listeners
+        checkbox1.addEventListener("change", updateCheckboxState);
+        checkbox2.addEventListener("change", updateCheckboxState);
+
+        const fileInput = document.getElementById("id_audio_file");
+        const fileNameDisplay = document.querySelector(".form-group p");
+
+        if (fileInput && fileNameDisplay) {
+            fileInput.addEventListener("change", function () {
+                if (fileInput.files.length > 0) {
+                    fileNameDisplay.textContent = fileInput.files[0].name;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

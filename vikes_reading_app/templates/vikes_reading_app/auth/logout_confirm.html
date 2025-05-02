@@ -1,0 +1,16 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Logout Confirmation #}
+{% block title %}
+Logout Confirmation
+{% endblock %}
+
+{# Logout Confirmation Form - Ask user to confirm logout or cancel #}
+{% block content %}
+<h1>Are you sure you want to logout?</h1>
+<form method="POST" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Logout</button>
+    <a href="{% url 'login' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

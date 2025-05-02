@@ -5,7 +5,37 @@ Home - Vike's Reading
 {% endblock %}
 
 {% block content %}
-    <h1>This text should be yellow on blue background</h1>
-    <br>
-    <p class="highlighted">This text is underlined</p>
+{# Greetings Section - Display welcome message and motivational quote #}
+<!--Greetings section-->
+<section class="greeting">
+    <h1>Welcome to Vike's Reading App!</h1>
+    <p>"A room without books is like a body without a soul." - Cicero</p>
+</section>
+
+{# Story List Section - Display available stories with title, description, and author #}
+<!--Story list section-->
+<h2>Available Stories</h2>
+<table class="story-table">
+    <thead>
+        <tr>
+            <th scope="col">Title</th>
+            <th scope="col">Description</th>
+            <th scope="col">Author</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for story, story_url in story_links %}
+            <tr>
+                <td><a href="{{ story_url }}">{{ story.title }}</a></td>
+                <td>{{ story.description|truncatewords:10 }}</td>
+                <td>{{ story.author.username }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="3">No stories available. <a href="{% url 'story_create' %}">Be the first to write one!</a></td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
 {% endblock %}

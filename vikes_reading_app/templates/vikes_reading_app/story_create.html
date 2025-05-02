@@ -1,0 +1,61 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}
+Create Story - Vike's Reading
+{% endblock %}
+
+{% block content %}
+<section role="region" aria-labelledby="story-form-title">
+    <h1 id="story-form-title">Create A New Story</h1>
+
+    {# Story Creation Form - Allows teachers to create a new story with title, description, and content #}
+    <form method="POST" action="{% url 'story_create' %}" class="wide-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}  <!-- Dynamically renders all fields from the StoryForm -->
+        
+        <div class="form-actions">
+            <button type="submit" name="submit" class="btn btn-primary">
+                Publish
+            </button>
+        </div>
+    </form>
+</section>
+
+{# TinyMCE Initialization - Adds rich text editing to the content field #}
+<!-- TinyMCE Script -->
+<script src="https://cdn.tiny.cloud/1/t4wtni2nlny7a1t0tfqw099lmvp1sysul2l8qut3nfk3f3gf/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    tinymce.init({
+        selector: '#id_content',  // Target the content field dynamically
+        plugins: 'link image preview',
+        toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist outdent indent | link image',
+        menubar: false,
+        height: 300,
+        content_css: '/static/css/style.css'
+    });
+</script>
+{# Chrome Textarea Fix - Ensure TinyMCE content is properly submitted on form submission #}
+<!-- Fix Chrome textarea issue on submit -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.querySelector('form');
+    
+        form.addEventListener('submit', function (e) {
+            // Save TinyMCE content to textarea
+            tinymce.triggerSave();
+    
+            // Fix the textarea for Chrome
+            const contentTextarea = document.getElementById('id_content');
+            if (contentTextarea) {
+                contentTextarea.removeAttribute('aria-hidden');
+                contentTextarea.style.display = 'block';
+                contentTextarea.style.opacity = '0';
+                contentTextarea.style.position = 'absolute';
+                contentTextarea.style.height = '1px';
+                contentTextarea.style.width = '1px';
+                contentTextarea.style.pointerEvents = 'none';
+            }
+        });
+    });
+    </script>
+{% endblock %}

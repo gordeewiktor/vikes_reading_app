@@ -1,0 +1,60 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}
+Story Preview - {{ story.title }}
+{% endblock %}
+
+{% block content %}
+<h1>Story Preview: {{ story.title }}</h1>
+
+{# Pre-Reading Exercises Section - List all pre-reading exercises with their options and correct answers #}
+<!-- Pre-Reading Exercises -->
+{% if pre_reading_exercises %}
+    <section>
+        <h2>Pre-Reading Exercises</h2>
+        <ul>
+            {% for exercise in pre_reading_exercises %}
+                <li>
+                    {{ exercise.question_text }}
+                    <ul>
+                        <li>{{ exercise.option_1 }}{% if exercise.is_option_1_correct %} (Correct Answer){% endif %}</li>
+                        <li>{{ exercise.option_2 }}{% if exercise.is_option_2_correct %} (Correct Answer){% endif %}</li>
+                    </ul>
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+{% else %}
+    <p>No pre-reading exercises found for this story.</p>
+{% endif %}
+
+{# Story Content Section - Display the main story content (safe for HTML rendering) #}
+<!-- Story Content -->
+<h2>Story Content</h2>
+<div class="story-container">
+    {{ story.content|safe }}
+</div>
+
+{# Post-Reading Questions Section - List all post-reading questions with options and mark correct answers #}
+<!-- Post-Reading Questions -->
+{% if post_reading_questions %}
+    <section>
+        <h2>Post-Reading Questions</h2>
+        <ol>
+            {% for question in post_reading_questions %}
+                <li>
+                    {{ question.question_text }}
+                    <ul>
+                        <li>{{ question.option_1 }}{% if question.correct_option == 1 %} (Correct Answer){% endif %}</li>
+                        <li>{{ question.option_2 }}{% if question.correct_option == 2 %} (Correct Answer){% endif %}</li>
+                        <li>{{ question.option_3 }}{% if question.correct_option == 3 %} (Correct Answer){% endif %}</li>
+                        <li>{{ question.option_4 }}{% if question.correct_option == 4 %} (Correct Answer){% endif %}</li>
+                    </ul>
+                </li>
+            {% endfor %}
+        </ol>
+    </section>
+{% else %}
+    <p>No post-reading questions found for this story.</p>
+{% endif %}
+{% endblock %}

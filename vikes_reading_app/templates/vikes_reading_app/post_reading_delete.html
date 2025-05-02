@@ -1,0 +1,18 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Delete Post-Reading Question #}
+{% block title %}
+Delete Post-Reading Question
+{% endblock %}
+
+{% block content %}
+{# Confirmation Section - Display question text and ask for deletion confirmation #}
+<h1>Are you sure you want to delete this post-reading question?</h1>
+<p><strong>{{ question.question_text }}</strong></p>
+{# Deletion Form - Allows user to confirm deletion or cancel and return to manage questions #}
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a href="{% url 'manage_questions' question.story.id %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

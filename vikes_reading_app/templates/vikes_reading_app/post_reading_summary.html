@@ -1,0 +1,79 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Post-Reading Summary showing final score and answers #}
+{% block title %}
+    Post-Reading Summary
+{% endblock %}
+
+{% block content %}
+    <h1>Post-Reading Summary</h1>
+
+    <!-- Display Final Score -->
+    <h2>You got {{ correct_answers }} out of {{ total_questions }} correct!</h2>
+
+    <hr>
+
+    {# Questions & Correct Answers Section - Display each question with correct answer and explanation #}
+    <div class="summary-container">
+        {% for question in questions %}
+            <div class="question-summary">
+                <p><strong>Question {{ forloop.counter }}:</strong> {{ question.question_text }}</p>
+                <p><strong>Correct Answer:</strong>
+                    {% if question.correct_option == 1 %}
+                        {{ question.option_1 }}
+                    {% elif question.correct_option == 2 %}
+                        {{ question.option_2 }}
+                    {% elif question.correct_option == 3 %}
+                        {{ question.option_3 }}
+                    {% elif question.correct_option == 4 %}
+                        {{ question.option_4 }}
+                    {% endif %}
+                </p>
+                <p><strong>Explanation:</strong> {{ question.explanation }}</p>
+            </div>
+            <hr>
+        {% endfor %}
+    </div>
+
+    {# Action Buttons - Finish and exit or retry the entire reading cycle #}
+    <div class="summary-buttons">
+        <button id="finish-exit-button" class="btn btn-primary">Finish & Exit</button>
+        <form method="POST" action="{% url 'reset_progress' story.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Retry Entire Cycle</button>
+        </form>
+    </div>
+
+    {# JavaScript - Track how long the student spent on the summary page and save it before exiting #}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let startTime = Date.now();
+
+            const finishButton = document.getElementById("finish-exit-button");
+
+            finishButton.addEventListener("click", function () {
+                const endTime = Date.now();
+                const timeSpentSeconds = Math.floor((endTime - startTime) / 1000);
+
+                fetch("{% url 'save_post_reading_time' story.id %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ time_spent: timeSpentSeconds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Post-reading time saved!", data);
+                    window.location.href = "{% url 'home' %}";
+                })
+                .catch(error => {
+                    console.error("Error saving time:", error);
+                    window.location.href = "{% url 'home' %}";
+                });
+            });
+        });
+    </script>
+
+{% endblock %}

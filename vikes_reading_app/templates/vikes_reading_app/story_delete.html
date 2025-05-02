@@ -1,0 +1,21 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Delete Story #}
+{% block title %}
+Delete Story
+{% endblock %}
+
+{# Confirmation Section - Ask user to confirm story deletion #}
+{% block content %}
+  <section role="alertdialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+    <h2 id="delete-title">Confirm Deletion</h2>
+    <p id="delete-description">Are you sure you want to permanently delete the story titled "<strong>{{ story.title }}</strong>"? This action cannot be undone.</p>
+
+    {# Deletion Form - Confirm deletion or cancel the action #}
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Yes, Delete</button>
+      <a href="{% url 'my_stories' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </section>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Manage Pre-Reading and Post-Reading Questions for a Story #}
+{% block title %}
+Manage Questions - {{ story.title }}
+{% endblock %}
+
+{% block content %}
+<h1>Manage Questions for: {{ story.title }}</h1>
+
+{# Pre-Reading Exercises Section - List all pre-reading exercises with edit and delete options #}
+<h2>Pre-Reading Exercises</h2>
+<ul>
+    {% for exercise in pre_reading_exercises %}
+    <li>
+        {{ exercise.question_text }}
+        <a href="{% url 'pre_reading_edit' exercise.id %}">Edit</a> |
+        <a href="{% url 'pre_reading_delete' exercise.id %}">Delete</a>
+    </li>
+    {% empty %}
+    <li>No pre-reading exercises yet.</li>
+    {% endfor %}
+</ul>
+<a href="{% url 'pre_reading_create' story.id %}">Add Pre-Reading Exercise</a>
+
+{# Post-Reading Questions Section - List all post-reading questions with edit and delete options #}
+<h2>Post-Reading Questions</h2>
+<ul>
+    {% for question in post_reading_questions %}
+    <li>
+        {{ question.question_text }}
+        <a href="{% url 'post_reading_edit' story.id question.id %}">Edit</a> |
+        <a href="{% url 'post_reading_delete' story.id question.id %}">Delete</a>
+    </li>
+    {% empty %}
+    <li>No post-reading questions yet.</li>
+    {% endfor %}
+</ul>
+<a href="{% url 'post_reading_create' story.id %}">Add Post-Reading Question</a>
+{% endblock %}

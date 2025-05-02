@@ -1,0 +1,36 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}
+Post-Reading - {{ story.title }}
+{% endblock %}
+
+{% block content %}
+{# Post-Reading Question - Display current post-reading question and answer options #}
+<div class="question-container">
+    <h2>Post-Reading Question {{ question_index|add:1 }} / {{ total_questions }}</h2>
+    <p><strong>{{ question.question_text }}</strong></p>
+
+    {# Answer Form - Allows student to select and submit their answer #}
+    <form method="POST" id="question-form" action="{% url 'post_reading_submit' story.id question.id %}">
+        {% csrf_token %}
+        <label><input type="radio" name="answer" value="1"> {{ question.option_1 }}</label><br>
+        <label><input type="radio" name="answer" value="2"> {{ question.option_2 }}</label><br>
+        <label><input type="radio" name="answer" value="3"> {{ question.option_3 }}</label><br>
+        <label><input type="radio" name="answer" value="4"> {{ question.option_4 }}</label><br>
+        <button type="submit" id="check-answer">Submit Answer</button>
+    </form>
+
+    {# Lookup Section - Allow student to check the story if they still have lookups left, otherwise disable #}
+    {% if lookup_count < 3 %}
+        <form method="POST" action="{% url 'start_lookup' story.id question.id %}">
+            {% csrf_token %}
+            <button type="submit">Check Story ({{ next_lookup_time }}s)</button>
+        </form>
+    {% else %}
+        <button disabled>No more lookups available</button>
+    {% endif %}
+
+    
+</div>
+
+{% endblock %}

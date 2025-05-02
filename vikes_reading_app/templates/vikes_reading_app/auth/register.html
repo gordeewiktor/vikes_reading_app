@@ -1,0 +1,20 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Register a new account #}
+{% block title %}
+Register - Vike's Reading
+{% endblock %}
+
+{% block content %}
+    <h1>Register a new account</h1>
+    {# Registration Form - Allows new users to create an account #}
+    <form method ="POST" action="{% url 'register' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="form-actions">
+            <button type="submit">Register</button>
+        </div>
+        {# Login Link - Redirect existing users to the login page #}
+        <p>Have account already? <a href="{% url 'login' %}">Login here</a></p>
+    </form>
+{% endblock %}

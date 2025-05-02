@@ -1,0 +1,57 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{% block title %}
+Read Story - Vike's Reading
+{% endblock %}
+
+{% block content %}
+<h1>{{ story.title }}</h1>
+
+{# Pre-Reading Exercises Section - List exercises with options and mark correct ones #}
+<h2>Pre-Reading Exercises</h2>
+{% for exercise in pre_reading_exercises %}
+    <div class="exercise">
+        <p><strong>Question:</strong> {{ exercise.question_text }}</p>
+        <ul>
+            <li>{{ exercise.option_1 }}{% if exercise.is_option_1_correct %} ✅{% endif %}</li>
+            <li>{{ exercise.option_2 }}{% if exercise.is_option_2_correct %} ✅{% endif %}</li>
+        </ul>
+        {% if exercise.audio_file %}
+            <p>Audio path: {{ exercise.audio_file.url }}</p>
+            <audio controls>
+                <source src="{{ exercise.audio_file.url|default_if_none:'' }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+        {% endif %}
+    </div>
+{% empty %}
+    <p>No pre-reading exercises available for this story.</p>
+{% endfor %}
+
+<hr>
+
+{# Story Content Section - Display the story text safely #}
+<h2>Story Content</h2>
+{{ story.content|safe }}
+
+<hr>
+
+{# Post-Reading Questions Section - List questions with options and mark correct ones, show explanations if available #}
+<h2>Post-Reading Questions</h2>
+{% for question in post_reading_questions %}
+    <div class="question">
+        <p><strong>Question:</strong> {{ question.question_text }}</p>
+        <ul>
+            <li>1. {{ question.option_1 }}{% if question.correct_option == 1 %} ✅{% endif %}</li>
+            <li>2. {{ question.option_2 }}{% if question.correct_option == 2 %} ✅{% endif %}</li>
+            <li>3. {{ question.option_3 }}{% if question.correct_option == 3 %} ✅{% endif %}</li>
+            <li>4. {{ question.option_4 }}{% if question.correct_option == 4 %} ✅{% endif %}</li>
+        </ul>
+        {% if question.explanation %}
+            <p><em>Explanation:</em> {{ question.explanation }}</p>
+        {% endif %}
+    </div>
+{% empty %}
+    <p>No post-reading questions available for this story.</p>
+{% endfor %}
+{% endblock %}
