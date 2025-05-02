@@ -15,15 +15,20 @@ Teachers can view student progress on their profile page, including:
 ⸻
 
 How to Run
-	1.	Install dependencies:
+	
+1.	Install dependencies:
         pip install -r requirements.txt
-    2.	Apply migrations:
+
+2.	Apply migrations:
         python manage.py migrate
-    3.	(Optional) Create a superuser to access Django admin:
+
+3.	(Optional) Create a superuser to access Django admin:
         python manage.py createsuperuser
-    4.	Run the server:
+
+4.	Run the server:
         python manage.py runserver
-    5.	Open the app in browser:
+
+5.	Open the app in browser:
         http://127.0.0.1:8000/
 
 
