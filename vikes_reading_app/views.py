@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib import messages
 from django.urls import reverse
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from .forms import CustomUserCreationForm, StoryForm, PreReadingExerciseForm, PostReadingQuestionForm
 from .models import Story, Progress, PreReadingExercise, PostReadingQuestion
 from django.views.decorators.csrf import csrf_exempt
@@ -117,9 +117,12 @@ def profile(request):
 @login_required
 def story_create(request):
     """
-    Allows users to create a new story.
+    Allows teachers to create a new story.
     On POST, saves the story as 'published' and redirects to 'my_stories'.
     """
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("You are not allowed to create stories.")
+    
     if request.method == 'POST':
         form = StoryForm(request.POST, request.FILES)
         if form.is_valid():
