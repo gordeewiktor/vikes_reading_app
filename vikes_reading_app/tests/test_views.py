@@ -125,3 +125,81 @@ def test_other_teacher_cannot_edit_story(client):
     assert story.title == 'Original Title'
     assert story.description == 'Original description'
     assert story.content == 'Original content'
+
+@pytest.mark.django_db
+def test_teacher_can_delete_own_story(client):
+    # 1. Create a teacher user and log in
+    teacher = User.objects.create_user(username='teacherdelete', password='pass1234', role='teacher')
+    client.login(username='teacherdelete', password='pass1234')
+
+    # 2. Create a story by this teacher
+    story = Story.objects.create(
+        title='Delete Me',
+        description='This will be deleted.',
+        content='Temporary content.',
+        author=teacher
+    )
+
+    # 3. Send POST request to delete the story
+    url = reverse('story_delete', args=[story.id])
+    response = client.post(url)
+
+    # 4. Check redirect (or success)
+    assert response.status_code in [302, 200]
+
+    # 5. Ensure the story is deleted from DB
+    assert not Story.objects.filter(id=story.id).exists()
+
+@pytest.mark.django_db
+def test_other_teacher_cannot_delete_story(client):
+    # 1. Create two teachers
+    author = User.objects.create_user(username='authordelete', password='pass123', role='teacher')
+    intruder = User.objects.create_user(username='badteacher', password='pass123', role='teacher')
+
+    # 2. Author creates a story
+    story = Story.objects.create(
+        title='Protected Story',
+        description='Should not be deleted.',
+        content='Don’t touch me.',
+        author=author
+    )
+
+    # 3. Log in as the second teacher
+    client.login(username='badteacher', password='pass123')
+
+    # 4. Attempt to delete the story
+    url = reverse('story_delete', args=[story.id])
+    response = client.post(url)
+
+    # 5. Expect forbidden or redirect
+    assert response.status_code in [302, 403]
+
+    # 6. Ensure story still exists
+    assert Story.objects.filter(id=story.id).exists()
+
+@pytest.mark.django_db
+def test_student_cannot_delete_story(client):
+    # 1. Create a teacher and a student
+    author = User.objects.create_user(username='teacherauth', password='pass123', role='teacher')
+    student = User.objects.create_user(username='studentdelete', password='pass123', role='student')
+
+    # 2. Author creates a story
+    story = Story.objects.create(
+        title='No Touchy',
+        description='Protected from students.',
+        content='Leave me be.',
+        author=author
+    )
+
+    # 3. Log in as student
+    client.login(username='studentdelete', password='pass123')
+
+    # 4. Attempt to delete the story
+    url = reverse('story_delete', args=[story.id])
+    response = client.post(url)
+
+    # 5. Expect forbidden or redirect
+    assert response.status_code in [302, 403]
+
+    # 6. Ensure story still exists
+    assert Story.objects.filter(id=story.id).exists()

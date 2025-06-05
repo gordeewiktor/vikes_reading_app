@@ -182,7 +182,9 @@ def story_delete(request, story_id):
     Allows authors to delete their own stories.
     On POST, deletes the story and all related exercises/questions.
     """
-    story = get_object_or_404(Story, id=story_id, author=request.user)
+    story = get_object_or_404(Story, id=story_id)
+    if request.user.role != 'teacher' or story.author != request.user:
+        return HttpResponseForbidden()
     if request.method == 'POST':
         PreReadingExercise.objects.filter(story=story).delete()
         PostReadingQuestion.objects.filter(story=story).delete()
