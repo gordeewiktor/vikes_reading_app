@@ -142,7 +142,9 @@ def story_edit(request, story_id):
     Allows authors to edit their own stories.
     On POST, updates the story and redirects to 'my_stories'.
     """
-    story = get_object_or_404(Story, id=story_id, author=request.user)
+    story = get_object_or_404(Story, id=story_id)
+    if request.user != story.author:
+        return HttpResponseForbidden("You are not allowed to edit this story.")
     if request.method == 'POST':
         form = StoryForm(request.POST, request.FILES, instance=story)
         if form.is_valid():

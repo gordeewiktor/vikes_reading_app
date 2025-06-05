@@ -49,3 +49,79 @@ def test_student_cannot_create_story(client):
     # 3. Expect forbidden or redirect
     assert response.status_code in [302, 403]
     assert not Story.objects.filter(title='Student Story').exists()
+
+@pytest.mark.django_db
+def test_teacher_can_edit_own_story(client):
+    # 1. Create a teacher user and log in
+    teacher = User.objects.create_user(username='teachera', password='pass123', role='teacher')
+    client.login(username='teachera', password='pass123')
+
+    # 2. Create a story authored by this teacher
+    story = Story.objects.create(
+        title='Original Title',
+        description='Original description',
+        content='Original content',
+        author=teacher,
+        status='published'
+    )
+
+    # 3. Prepare updated story data
+    updated_data = {
+        'title': 'Updated Title',
+        'description': 'Updated description',
+        'content': 'Updated content',
+    }
+
+    # 4. Send POST request to the story edit view
+    url = reverse('story_edit', args=[story.id])
+    response = client.post(url, updated_data)
+
+    # 5. Confirm the response is a redirect (successful update)
+    assert response.status_code == 302
+
+    # 6. Refresh the story from the DB and check that fields were updated
+    story.refresh_from_db()
+    assert story.title == 'Updated Title'
+    assert story.description == 'Updated description'
+    assert story.content == 'Updated content'
+
+
+# New test: another teacher cannot edit someone else's story
+import pytest
+from django.urls import reverse
+
+@pytest.mark.django_db
+def test_other_teacher_cannot_edit_story(client):
+    # 1. Create two teachers
+    author = User.objects.create_user(username='author', password='pass123', role='teacher')
+    intruder = User.objects.create_user(username='intruder', password='pass123', role='teacher')
+
+    # 2. Author creates a story
+    story = Story.objects.create(
+        title='Original Title',
+        description='Original description',
+        content='Original content',
+        author=author,
+        status='published'
+    )
+
+    # 3. Log in as the second teacher (intruder)
+    client.login(username='intruder', password='pass123')
+
+    # 4. Try to edit the author's story
+    updated_data = {
+        'title': 'Hacked Title',
+        'description': 'Hacked description',
+        'content': 'Hacked content',
+    }
+    url = reverse('story_edit', args=[story.id])
+    response = client.post(url, updated_data)
+
+    # 5. Expect forbidden or redirect
+    assert response.status_code in [302, 403]
+
+    # 6. Ensure story content did not change
+    story.refresh_from_db()
+    assert story.title == 'Original Title'
+    assert story.description == 'Original description'
+    assert story.content == 'Original content'
