@@ -203,3 +203,75 @@ def test_student_cannot_delete_story(client):
 
     # 6. Ensure story still exists
     assert Story.objects.filter(id=story.id).exists()
+
+
+# Test: teacher cannot create story with missing fields
+import pytest
+from django.urls import reverse
+
+@pytest.mark.django_db
+def test_teacher_cannot_create_story_with_missing_fields(client):
+    # 1. Create and log in a teacher
+    teacher = User.objects.create_user(username='teacher_incomplete', password='pass123', role='teacher')
+    client.login(username='teacher_incomplete', password='pass123')
+
+    # 2. Prepare invalid data (missing title and content)
+    invalid_data = {
+        'title': '',
+        'description': 'Oops, I forgot something.',
+        'content': '',
+    }
+
+    # 3. Send POST request to create story
+    url = reverse('story_create')
+    response = client.post(url, invalid_data)
+
+    # 4. Check that the form is invalid and page is re-rendered (not redirected)
+    assert response.status_code == 200  # Stay on the same page due to form errors
+    assert 'This field is required' in response.content.decode()
+
+    # 5. Ensure no story was created
+    assert not Story.objects.filter(description='Oops, I forgot something.').exists()
+@pytest.mark.django_db
+def test_anonymous_user_cannot_create_story(client):
+    # Not logged in!
+
+    form_data = {
+        'title': 'Anonymous Attack',
+        'description': 'Should not be allowed.',
+        'content': 'No auth, no access.',
+    }
+
+    url = reverse('story_create')
+    response = client.post(url, form_data)
+
+    # Expect redirect to login page (usually 302)
+    assert response.status_code == 302
+    assert '/login' in response.url or 'accounts/login' in response.url
+
+    # Ensure story was NOT created
+    from vikes_reading_app.models import Story
+    assert not Story.objects.filter(title='Anonymous Attack').exists()
+
+@pytest.mark.django_db
+def test_anonymous_user_cannot_access_story_views(client):
+    from django.urls import reverse
+
+    story_id = 999  # Dummy ID – doesn't matter since we expect redirect before lookup
+
+    protected_urls = [
+        reverse('story_read_teacher', args=[story_id]),
+        reverse('story_read_student', args=[story_id]),
+        reverse('story_entry_point', args=[story_id]),
+        reverse('story_edit', args=[story_id]),
+        reverse('story_delete', args=[story_id]),
+        reverse('story_create'),
+        reverse('my_stories'),
+        reverse('profile'),
+    ]
+
+    for url in protected_urls:
+        response = client.get(url)
+        # Anonymous users should get redirected to login
+        assert response.status_code == 302
+        assert '/login' in response.url or 'accounts/login' in response.url
