@@ -275,3 +275,40 @@ def test_anonymous_user_cannot_access_story_views(client):
         # Anonymous users should get redirected to login
         assert response.status_code == 302
         assert '/login' in response.url or 'accounts/login' in response.url
+
+@pytest.mark.django_db
+def test_student_cannot_access_teacher_views(client):
+    from django.urls import reverse
+    from django.contrib.auth import get_user_model
+    from vikes_reading_app.models import Story
+
+    User = get_user_model()
+
+    # Create a teacher and a student
+    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
+    student = User.objects.create_user(username='student', password='pass', role='student')
+
+    # Create a real story authored by the teacher
+    story = Story.objects.create(
+        title='Protected',
+        description='Teacher only',
+        content='Secret stuff',
+        author=teacher,
+        status='published'
+    )
+
+    # Login as student
+    client.login(username='student', password='pass')
+
+    # URLs the student shouldn't access
+    urls = [
+        reverse('story_create'),
+        reverse('story_edit', args=[story.id]),
+        reverse('story_delete', args=[story.id]),
+        reverse('story_read_teacher', args=[story.id]),
+        reverse('manage_questions', args=[story.id]),
+    ]
+
+    for url in urls:
+        response = client.get(url)
+        assert response.status_code in [403, 302]

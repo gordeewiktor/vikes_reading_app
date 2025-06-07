@@ -166,6 +166,8 @@ def story_read_teacher(request, story_id):
     Teacher view for a story. Shows the story text and associated pre-reading and post-reading questions.
     """
     story = get_object_or_404(Story, id=story_id)
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("Students cannot view this page.")
     pre_reading_exercises = PreReadingExercise.objects.filter(story=story).order_by('id')
     post_reading_questions = PostReadingQuestion.objects.filter(story=story).order_by('id')
     return render(request, 'vikes_reading_app/story_read_teacher.html', {
@@ -198,6 +200,8 @@ def manage_questions(request, story_id):
     """
     Allows the story author to view and manage (add/edit/delete) pre-reading and post-reading questions for a story.
     """
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("Students cannot view this page.")
     story = get_object_or_404(Story, id=story_id)
     pre_reading_exercises = PreReadingExercise.objects.filter(story=story).order_by('id')
     post_reading_questions = PostReadingQuestion.objects.filter(story=story).order_by('id')
@@ -212,6 +216,8 @@ def post_reading_create(request, story_id):
     """
     Allows the story author to add a new post-reading question to a story.
     """
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("Students cannot view this page.")
     story = get_object_or_404(Story, id=story_id)
     if request.method == "POST":
         form = PostReadingQuestionForm(request.POST)
@@ -229,6 +235,8 @@ def post_reading_edit(request, story_id, question_id):
     """
     Allows the story author to edit an existing post-reading question.
     """
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("Students cannot view this page.")
     story = get_object_or_404(Story, id=story_id, author=request.user)
     question = get_object_or_404(PostReadingQuestion, id=question_id, story=story)
     if request.method == "POST":
@@ -264,6 +272,8 @@ def pre_reading_create(request, story_id):
     Allows the story author to add a new pre-reading exercise to a story.
     """
     story = get_object_or_404(Story, id=story_id)
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("Students cannot view this page.")
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES)
         if form.is_valid():
@@ -282,6 +292,8 @@ def pre_reading_edit(request, exercise_id):
     """
     exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
     story = exercise.story
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("Students cannot view this page.")
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES, instance=exercise)
         if form.is_valid():
@@ -301,6 +313,8 @@ def pre_reading_delete(request, exercise_id):
     Allows the story author to delete a pre-reading exercise.
     """
     exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
+    if request.user.role != 'teacher':
+        return HttpResponseForbidden("Students cannot view this page.")
     if request.method == "POST":
         exercise.delete()
         messages.success(request, "Exercise deleted successfully!")
