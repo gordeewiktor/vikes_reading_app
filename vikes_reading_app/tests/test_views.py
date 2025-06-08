@@ -312,3 +312,123 @@ def test_student_cannot_access_teacher_views(client):
     for url in urls:
         response = client.get(url)
         assert response.status_code in [403, 302]
+@pytest.mark.django_db
+def test_student_can_view_story_read_student(client):
+    from django.urls import reverse
+    from django.contrib.auth import get_user_model
+    from vikes_reading_app.models import Story
+
+    User = get_user_model()
+
+    # Create a teacher and a student
+    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
+    student = User.objects.create_user(username='student', password='pass', role='student')
+
+    # Create a story authored by the teacher
+    story = Story.objects.create(
+        title='Public Story',
+        description='Readable by students',
+        content='This story is safe for students to view.',
+        author=teacher,
+        status='published'
+    )
+
+    # Log in as student
+    client.login(username='student', password='pass')
+
+    # Access the student story view
+    url = reverse('story_read_student', args=[story.id])
+    response = client.get(url)
+
+    # Should be allowed
+    assert response.status_code == 200
+    assert b'This story is safe for students to view.' in response.content
+
+@pytest.mark.django_db
+def test_student_redirected_to_pre_reading_if_no_progress(client):
+    from django.urls import reverse
+    from django.contrib.auth import get_user_model
+    from vikes_reading_app.models import Story
+
+    User = get_user_model()
+
+    # Create a teacher and a student
+    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
+    student = User.objects.create_user(username='student', password='pass', role='student')
+
+    # Create a story authored by the teacher
+    story = Story.objects.create(
+        title='Fresh Start',
+        description='No progress yet',
+        content='Story content.',
+        author=teacher,
+        status='published'
+    )
+
+    # Log in as student
+    client.login(username='student', password='pass')
+
+    # Access story_entry_point without any session or DB progress
+    url = reverse('story_entry_point', args=[story.id])
+    response = client.get(url)
+
+    # Expect redirect to pre_reading_read
+    assert response.status_code == 302
+    assert reverse('pre_reading_read', args=[story.id]) in response.url
+
+
+# Additional test: student redirected to summary after finishing pre-reading
+import pytest
+
+@pytest.mark.django_db
+def test_student_redirected_to_summary_after_finishing_pre_reading(client):
+    from django.urls import reverse
+    from django.contrib.auth import get_user_model
+    from vikes_reading_app.models import Story, PreReadingExercise
+
+    User = get_user_model()
+
+    # Create a teacher and a student
+    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
+    student = User.objects.create_user(username='student', password='pass', role='student')
+
+    # Create a story
+    story = Story.objects.create(
+        title='Summary Redirect Test',
+        description='Test redirection to pre-reading summary',
+        content='Some content',
+        author=teacher,
+        status='published'
+    )
+
+    # Create two pre-reading exercises
+    exercise1 = PreReadingExercise.objects.create(
+        story=story,
+        question_text='What is 1+1?',
+        option_1='2',
+        option_2='3',
+        is_option_1_correct=True
+    )
+    exercise2 = PreReadingExercise.objects.create(
+        story=story,
+        question_text='What is 2+2?',
+        option_1='3',
+        option_2='4',
+        is_option_2_correct=True
+    )
+
+    # Log in as student
+    client.login(username='student', password='pass')
+
+    # Simulate session with all pre-reading questions answered
+    session = client.session
+    session[f'pre_reading_progress_{story.id}'] = [exercise1.id, exercise2.id]
+    session.save()
+
+    # Access pre-reading read view
+    url = reverse('pre_reading_read', args=[story.id])
+    response = client.get(url)
+
+    # Should redirect to summary
+    assert response.status_code == 302
+    assert reverse('pre_reading_summary', args=[story.id]) in response.url
