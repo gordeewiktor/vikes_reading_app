@@ -1,42 +1,48 @@
 import pytest
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from vikes_reading_app.models import Story
+from vikes_reading_app.models import Story, PreReadingExercise
 
 User = get_user_model()
 
-@pytest.mark.django_db
-def test_teacher_can_create_story(client):
-    # 1. Create and log in a teacher user
-    teacher = User.objects.create_user(username='teachertest', password='password123', role='teacher')
-    client.login(username='teachertest', password='password123')
+@pytest.fixture
+def teacher_user(db):
+    return User.objects.create_user(username='teacher', password='pass', role='teacher')
 
-    # 2. Prepare story data
+@pytest.fixture
+def student_user(db):
+    return User.objects.create_user(username='student', password='pass', role='student')
+
+@pytest.fixture
+def logged_in_client_teacher(client, teacher_user):
+    client.login(username='teacher', password='pass')
+    return client, teacher_user
+
+@pytest.fixture
+def logged_in_client_student(client, student_user):
+    client.login(username='student', password='pass')
+    return client
+
+@pytest.mark.django_db
+def test_teacher_can_create_story(logged_in_client_teacher):
+    client, teacher = logged_in_client_teacher
     form_data = {
         'title': 'Test Story Title',
         'description': 'A quick story description.',
         'content': 'Once upon a time...',
     }
 
-    # 3. Send POST request to create story
     url = reverse('story_create')
     response = client.post(url, form_data)
 
-    # 4. Check the redirect status (302)
     assert response.status_code == 302
-
-    # 5. Check that the story was actually created in DB
     stories = Story.objects.filter(title='Test Story Title')
     assert stories.exists()
     assert stories.first().author == teacher
 
 @pytest.mark.django_db
-def test_student_cannot_create_story(client):
-    # 1. Create and log in a student user
-    student = User.objects.create_user(username='studenttest', password='password123', role='student')
-    client.login(username='studenttest', password='password123')
-
-    # 2. Attempt to create a story
+def test_student_cannot_create_story(logged_in_client_student):
+    client = logged_in_client_student
     form_data = {
         'title': 'Student Story',
         'description': 'Student should not do this.',
@@ -46,16 +52,13 @@ def test_student_cannot_create_story(client):
     url = reverse('story_create')
     response = client.post(url, form_data)
 
-    # 3. Expect forbidden or redirect
+    # 2. Expect forbidden or redirect
     assert response.status_code in [302, 403]
     assert not Story.objects.filter(title='Student Story').exists()
 
 @pytest.mark.django_db
-def test_teacher_can_edit_own_story(client):
-    # 1. Create a teacher user and log in
-    teacher = User.objects.create_user(username='teachera', password='pass123', role='teacher')
-    client.login(username='teachera', password='pass123')
-
+def test_teacher_can_edit_own_story(logged_in_client_teacher):
+    client, teacher = logged_in_client_teacher
     # 2. Create a story authored by this teacher
     story = Story.objects.create(
         title='Original Title',
@@ -86,15 +89,10 @@ def test_teacher_can_edit_own_story(client):
     assert story.content == 'Updated content'
 
 
-# New test: another teacher cannot edit someone else's story
-import pytest
-from django.urls import reverse
-
 @pytest.mark.django_db
-def test_other_teacher_cannot_edit_story(client):
+def test_other_teacher_cannot_edit_story(client, teacher_user):
     # 1. Create two teachers
-    author = User.objects.create_user(username='author', password='pass123', role='teacher')
-    intruder = User.objects.create_user(username='intruder', password='pass123', role='teacher')
+    author = teacher_user
 
     # 2. Author creates a story
     story = Story.objects.create(
@@ -106,7 +104,8 @@ def test_other_teacher_cannot_edit_story(client):
     )
 
     # 3. Log in as the second teacher (intruder)
-    client.login(username='intruder', password='pass123')
+    intruder = User.objects.create_user(username='intruder', password='pass123', role='teacher')
+    client.login(username=intruder.username, password='pass123')
 
     # 4. Try to edit the author's story
     updated_data = {
@@ -127,10 +126,9 @@ def test_other_teacher_cannot_edit_story(client):
     assert story.content == 'Original content'
 
 @pytest.mark.django_db
-def test_teacher_can_delete_own_story(client):
+def test_teacher_can_delete_own_story(logged_in_client_teacher):
     # 1. Create a teacher user and log in
-    teacher = User.objects.create_user(username='teacherdelete', password='pass1234', role='teacher')
-    client.login(username='teacherdelete', password='pass1234')
+    client, teacher = logged_in_client_teacher
 
     # 2. Create a story by this teacher
     story = Story.objects.create(
@@ -154,7 +152,6 @@ def test_teacher_can_delete_own_story(client):
 def test_other_teacher_cannot_delete_story(client):
     # 1. Create two teachers
     author = User.objects.create_user(username='authordelete', password='pass123', role='teacher')
-    intruder = User.objects.create_user(username='badteacher', password='pass123', role='teacher')
 
     # 2. Author creates a story
     story = Story.objects.create(
@@ -178,10 +175,10 @@ def test_other_teacher_cannot_delete_story(client):
     assert Story.objects.filter(id=story.id).exists()
 
 @pytest.mark.django_db
-def test_student_cannot_delete_story(client):
+def test_student_cannot_delete_story(client, student_user):
     # 1. Create a teacher and a student
     author = User.objects.create_user(username='teacherauth', password='pass123', role='teacher')
-    student = User.objects.create_user(username='studentdelete', password='pass123', role='student')
+    student = student_user
 
     # 2. Author creates a story
     story = Story.objects.create(
@@ -192,7 +189,7 @@ def test_student_cannot_delete_story(client):
     )
 
     # 3. Log in as student
-    client.login(username='studentdelete', password='pass123')
+    client.login(username=student.username, password='pass')
 
     # 4. Attempt to delete the story
     url = reverse('story_delete', args=[story.id])
@@ -204,16 +201,10 @@ def test_student_cannot_delete_story(client):
     # 6. Ensure story still exists
     assert Story.objects.filter(id=story.id).exists()
 
-
-# Test: teacher cannot create story with missing fields
-import pytest
-from django.urls import reverse
-
 @pytest.mark.django_db
-def test_teacher_cannot_create_story_with_missing_fields(client):
-    # 1. Create and log in a teacher
-    teacher = User.objects.create_user(username='teacher_incomplete', password='pass123', role='teacher')
-    client.login(username='teacher_incomplete', password='pass123')
+def test_teacher_cannot_create_story_with_missing_fields(logged_in_client_teacher):
+    # 1. Use logged-in teacher fixture
+    client, _ = logged_in_client_teacher
 
     # 2. Prepare invalid data (missing title and content)
     invalid_data = {
@@ -277,30 +268,17 @@ def test_anonymous_user_cannot_access_story_views(client):
         assert '/login' in response.url or 'accounts/login' in response.url
 
 @pytest.mark.django_db
-def test_student_cannot_access_teacher_views(client):
-    from django.urls import reverse
-    from django.contrib.auth import get_user_model
-    from vikes_reading_app.models import Story
-
-    User = get_user_model()
-
-    # Create a teacher and a student
-    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
-    student = User.objects.create_user(username='student', password='pass', role='student')
-
-    # Create a real story authored by the teacher
+def test_student_cannot_access_teacher_views(client, teacher_user, student_user):
     story = Story.objects.create(
         title='Protected',
         description='Teacher only',
         content='Secret stuff',
-        author=teacher,
+        author=teacher_user,
         status='published'
     )
 
-    # Login as student
-    client.login(username='student', password='pass')
+    client.login(username=student_user.username, password='pass')
 
-    # URLs the student shouldn't access
     urls = [
         reverse('story_create'),
         reverse('story_edit', args=[story.id]),
@@ -312,92 +290,52 @@ def test_student_cannot_access_teacher_views(client):
     for url in urls:
         response = client.get(url)
         assert response.status_code in [403, 302]
+
 @pytest.mark.django_db
-def test_student_can_view_story_read_student(client):
-    from django.urls import reverse
-    from django.contrib.auth import get_user_model
-    from vikes_reading_app.models import Story
-
-    User = get_user_model()
-
-    # Create a teacher and a student
-    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
-    student = User.objects.create_user(username='student', password='pass', role='student')
-
-    # Create a story authored by the teacher
+def test_student_can_view_story_read_student(client, teacher_user, student_user):
     story = Story.objects.create(
         title='Public Story',
         description='Readable by students',
         content='This story is safe for students to view.',
-        author=teacher,
+        author=teacher_user,
         status='published'
     )
 
-    # Log in as student
-    client.login(username='student', password='pass')
+    client.login(username=student_user.username, password='pass')
 
-    # Access the student story view
     url = reverse('story_read_student', args=[story.id])
     response = client.get(url)
 
-    # Should be allowed
     assert response.status_code == 200
     assert b'This story is safe for students to view.' in response.content
 
 @pytest.mark.django_db
-def test_student_redirected_to_pre_reading_if_no_progress(client):
-    from django.urls import reverse
-    from django.contrib.auth import get_user_model
-    from vikes_reading_app.models import Story
-
-    User = get_user_model()
-
-    # Create a teacher and a student
-    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
-    student = User.objects.create_user(username='student', password='pass', role='student')
-
-    # Create a story authored by the teacher
+def test_student_redirected_to_pre_reading_if_no_progress(client, teacher_user, student_user):
     story = Story.objects.create(
         title='Fresh Start',
         description='No progress yet',
         content='Story content.',
-        author=teacher,
+        author=teacher_user,
         status='published'
     )
 
-    # Log in as student
-    client.login(username='student', password='pass')
+    client.login(username=student_user.username, password='pass')
 
-    # Access story_entry_point without any session or DB progress
     url = reverse('story_entry_point', args=[story.id])
     response = client.get(url)
 
-    # Expect redirect to pre_reading_read
     assert response.status_code == 302
     assert reverse('pre_reading_read', args=[story.id]) in response.url
 
-
-# Additional test: student redirected to summary after finishing pre-reading
-import pytest
-
 @pytest.mark.django_db
-def test_student_redirected_to_summary_after_finishing_pre_reading(client):
-    from django.urls import reverse
-    from django.contrib.auth import get_user_model
-    from vikes_reading_app.models import Story, PreReadingExercise
-
-    User = get_user_model()
-
-    # Create a teacher and a student
-    teacher = User.objects.create_user(username='teacher', password='pass', role='teacher')
-    student = User.objects.create_user(username='student', password='pass', role='student')
+def test_student_redirected_to_summary_after_finishing_pre_reading(client, teacher_user, student_user):
 
     # Create a story
     story = Story.objects.create(
         title='Summary Redirect Test',
         description='Test redirection to pre-reading summary',
         content='Some content',
-        author=teacher,
+        author=teacher_user,
         status='published'
     )
 
@@ -418,7 +356,7 @@ def test_student_redirected_to_summary_after_finishing_pre_reading(client):
     )
 
     # Log in as student
-    client.login(username='student', password='pass')
+    client.login(username=student_user.username, password='pass')
 
     # Simulate session with all pre-reading questions answered
     session = client.session
