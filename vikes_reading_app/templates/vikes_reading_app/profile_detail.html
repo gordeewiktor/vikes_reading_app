@@ -1,0 +1,54 @@
+{% extends 'vikes_reading_app/base.html' %}
+
+{# Page Title - Individual student progress detail #}
+{% block title %}
+Student Profile - Vike's Reading
+{% endblock %}
+
+{% block content %}
+<h1>Profile: {{ student.username }}</h1>
+
+{% if progress_records %}
+    <table class="story-table">
+        <thead>
+            <tr>
+                <th scope="col">Story</th>
+                <th scope="col">Pre-Reading</th>
+                <th scope="col">Reading</th>
+                <th scope="col">Post-Reading</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in progress_records %}
+                <tr>
+                    <td>{{ record.story.title }}</td>
+                    <td>
+                        {% if record.pre_reading_time %}
+                            {{ record.score }}%<br>
+                            {{ record.pre_reading_time }}s
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if record.reading_time %}
+                            {{ record.reading_time }}s
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if record.post_reading_time %}
+                            {{ record.post_reading_time }}s
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>This student has not started reading any stories yet.</p>
+{% endif %}
+{% endblock %}
