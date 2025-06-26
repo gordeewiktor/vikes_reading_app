@@ -1,14 +1,20 @@
 from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib import messages
 from django.urls import reverse
 from django.http import JsonResponse, HttpResponseForbidden
 from .forms import CustomUserCreationForm, StoryForm, PreReadingExerciseForm, PostReadingQuestionForm
-from .models import Story, Progress, PreReadingExercise, PostReadingQuestion
+from .models import Story, Progress, PreReadingExercise, PostReadingQuestion, CustomUser
 from django.views.decorators.csrf import csrf_exempt
 import json
+
+# Function to check if the user is a teacher
+# This will be used as a decorator to restrict access to views
+# Only authenticated users with the role 'teacher' will pass this test
+def is_teacher(user):
+    return user.is_authenticated and user.role == 'teacher'
 
 def home(request):
     """
@@ -18,8 +24,23 @@ def home(request):
       - Teachers: link to teacher view of the story
       - Unauthenticated: link to login page
     """
-    stories = Story.objects.all()
+    
     user = request.user
+
+    # Filter stories based on user role:
+    # - Students and unauthenticated users see only 'published' stories.
+    # - Teachers can see all stories, including drafts.
+    # - Unknown roles get no stories (just in case). 
+    if user.is_authenticated:
+        if user.role == 'student':
+            stories = Story.objects.filter(status='published')
+        elif user.role == 'teacher':
+            stories = Story.objects.all()
+        else:
+            stories = Story.objects.none()
+    else:
+        stories = Story.objects.filter(status='published')
+
     story_links = []
 
     for story in stories:
@@ -63,13 +84,17 @@ def logout_confirm(request):
     """
     return render(request, 'vikes_reading_app/auth/logout_confirm.html')
 
-@login_required
+@login_required()
 def my_stories(request):
     """
     Shows a list of stories authored by the currently logged-in user.
     """
-    stories = Story.objects.filter(author=request.user)
-    return render(request, 'vikes_reading_app/my_stories.html', {'stories': stories})
+    user = request.user
+    if user.role == 'teacher':
+        stories = Story.objects.filter(author=request.user)
+        return render(request, 'vikes_reading_app/my_stories.html', {'stories': stories})
+    else:
+        return redirect('profile')
 
 @login_required
 def profile(request):
@@ -164,10 +189,13 @@ def story_edit(request, story_id):
 def story_read_teacher(request, story_id):
     """
     Teacher view for a story. Shows the story text and associated pre-reading and post-reading questions.
+    Only the author can access it.
     """
     story = get_object_or_404(Story, id=story_id)
     if request.user.role != 'teacher':
         return HttpResponseForbidden("Students cannot view this page.")
+    if request.user != story.author:
+        return HttpResponseForbidden("You are not allowed to view this story.")
     pre_reading_exercises = PreReadingExercise.objects.filter(story=story).order_by('id')
     post_reading_questions = PostReadingQuestion.objects.filter(story=story).order_by('id')
     return render(request, 'vikes_reading_app/story_read_teacher.html', {
@@ -332,6 +360,11 @@ def pre_reading_summary(request, story_id):
     # Retrieve completed question IDs from session
     session_key = f'pre_reading_progress_{story_id}'
     completed_ids = request.session.get(session_key, [])
+
+    #check whether all questions were completed
+    if len(completed_ids) < exercises.count():
+        return redirect('pre_reading_read', story_id=story_id)
+    
     correct_count = 0
     question_data = []
     for exercise in exercises:
@@ -426,6 +459,9 @@ def story_read_student(request, story_id):
     """
     Displays the story text only (no exercises/questions) for students.
     """
+    if not request.user.is_authenticated or request.user.role != 'student':
+        return HttpResponseForbidden("Access denied: Only students can view this page.")
+    
     story = get_object_or_404(Story, id=story_id)
     return render(request, 'vikes_reading_app/story_read_student.html', {'story': story})
 
@@ -688,6 +724,13 @@ def story_entry_point(request, story_id):
     # If no progress in DB and no session progress, go to pre-reading
     if not progress and not session_progress:
         return redirect('pre_reading_read', story_id=story.id)
+
+    # Check if post-reading is already completed by comparing progress.answers_given
+    post_total_questions = PostReadingQuestion.objects.filter(story=story).count()
+    post_answers = progress.answers_given if progress and progress.answers_given else {}
+    if post_total_questions > 0 and len(post_answers) == post_total_questions:
+        return redirect('post_reading_summary', story_id=story.id)
+
     # Calculate pre-reading score from session answers
     pre_reading_exercises = PreReadingExercise.objects.filter(story=story)
     pre_total_questions = pre_reading_exercises.count()
@@ -698,11 +741,10 @@ def story_entry_point(request, story_id):
             correct_answer = exercise.option_1 if exercise.is_option_1_correct else exercise.option_2
             if selected_answer == correct_answer:
                 pre_correct_answers += 1
-    # Calculate post-reading score from Progress
-    post_total_questions = PostReadingQuestion.objects.filter(story=story).count()
-    post_correct_answers = 0
-    if progress and progress.answers_given:
-        post_correct_answers = sum(1 for value in progress.answers_given.values() if value)
+
+    # Post-reading progress calculation (after redirect check)
+    post_correct_answers = sum(1 for value in post_answers.values() if value)
+
     context = {
         'story': story,
         'pre_correct_answers': pre_correct_answers,
@@ -744,3 +786,44 @@ def return_to_question(request, story_id, question_index):
     """
     return redirect("post_reading_read", story_id=story_id, question_index=question_index)
 
+def is_teacher(user):
+    return user.is_authenticated and user.role == 'teacher'
+
+# View accessible only to teachers, showing all students and whether they have any progress
+@user_passes_test(is_teacher)
+def my_students(request):
+    # Get all users who are students
+    students = CustomUser.objects.filter(role='student')
+
+    # Create a list of tuples (student, has_progress)
+    # has_progress is True if any Progress record exists for that student
+    student_status = [
+        (student, Progress.objects.filter(student=student).exists())
+        for student in students
+    ]
+
+    # Pass the list to the template
+    context = {
+        'student_status': student_status
+    }
+    return render(request, 'vikes_reading_app/my_students.html', context)
+
+# View to display detailed profile and progress of a specific student
+@user_passes_test(lambda u: u.is_authenticated and u.role == 'teacher')
+@login_required
+def profile_detail(request, student_id):
+    # Get the student object or 404 if not found or not a student
+    student = get_object_or_404(CustomUser, id=student_id, role='student')
+
+    # Fetch all progress objects for this student on stories created by the current teacher
+    teacher_stories = request.user.story_set.all()
+    progress_records = Progress.objects.filter(
+        student=student,
+        read_story__in=teacher_stories
+    ).select_related('read_story')
+
+    context = {
+        'student': student,
+        'progress_records': progress_records,  # Renamed for template consistency
+    }
+    return render(request, 'vikes_reading_app/profile_detail.html', context)

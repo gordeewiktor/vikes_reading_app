@@ -25,6 +25,9 @@
                             <li>
                                 <a href="{% url 'my_stories' %}" class="{% if request.resolver_match.url_name == 'my_stories' %}active{% endif %}">My Stories</a>
                             </li>
+                            <li>
+                                <a href="{% url 'my_students' %}" class="{% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">My Students</a>
+                            </li>
                         {% endif %}
                         <li>
                             <a href="{% url 'logout_confirm' %}" class="{% if request.resolver_match.url_name == 'logout_confirm' %}active{% endif %}">Logout</a>
