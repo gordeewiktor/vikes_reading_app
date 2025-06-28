@@ -15,12 +15,12 @@ def student_user(db):
 
 @pytest.fixture
 def logged_in_client_teacher(client, teacher_user):
-    client.login(username='teacher', password='pass')
+    client.login(username=teacher_user.username, password='pass')
     return client
 
 @pytest.fixture
-def logged_in_client_student(client):
-    client.login(username='student', password='pass')
+def logged_in_client_student(client, student_user):
+    client.login(username=student_user.username, password='pass')
     return client
 
 @pytest.fixture
@@ -60,14 +60,14 @@ def test_student_cannot_create_story(logged_in_client_student):
     url = reverse('story_create')
     response = client.post(url, form_data)
 
-    # 2. Expect forbidden or redirect
+    # Expect forbidden or redirect
     assert response.status_code in [302, 403]
     assert not Story.objects.filter(title='Student Story').exists()
 
 @pytest.mark.django_db
 def test_teacher_can_edit_own_story(logged_in_client_teacher, teacher_user):
     client = logged_in_client_teacher
-    # 2. Create a story authored by this teacher
+    # Create a story authored by this teacher
     story = Story.objects.create(
         title='Original Title',
         description='Original description',
@@ -76,21 +76,21 @@ def test_teacher_can_edit_own_story(logged_in_client_teacher, teacher_user):
         status='published'
     )
 
-    # 3. Prepare updated story data
+    # Prepare updated story data
     updated_data = {
         'title': 'Updated Title',
         'description': 'Updated description',
         'content': 'Updated content',
     }
 
-    # 4. Send POST request to the story edit view
+    # Send POST request to the story edit view
     url = reverse('story_edit', args=[story.id])
     response = client.post(url, updated_data)
 
-    # 5. Confirm the response is a redirect (successful update)
+    # Confirm the response is a redirect (successful update)
     assert response.status_code == 302
 
-    # 6. Refresh the story from the DB and check that fields were updated
+    # Refresh the story from the DB and check that fields were updated
     story.refresh_from_db()
     assert story.title == 'Updated Title'
     assert story.description == 'Updated description'
@@ -99,10 +99,10 @@ def test_teacher_can_edit_own_story(logged_in_client_teacher, teacher_user):
 
 @pytest.mark.django_db
 def test_other_teacher_cannot_edit_story(client, teacher_user):
-    # 1. Create two teachers
+    # Create two teachers
     author = teacher_user
 
-    # 2. Author creates a story
+    # Author creates a story
     story = Story.objects.create(
         title='Original Title',
         description='Original description',
@@ -111,11 +111,11 @@ def test_other_teacher_cannot_edit_story(client, teacher_user):
         status='published'
     )
 
-    # 3. Log in as the second teacher (intruder)
+    # Log in as the second teacher (intruder)
     intruder = User.objects.create_user(username='intruder', password='pass123', role='teacher')
     client.login(username=intruder.username, password='pass123')
 
-    # 4. Try to edit the author's story
+    # Try to edit the author's story
     updated_data = {
         'title': 'Hacked Title',
         'description': 'Hacked description',
@@ -124,10 +124,10 @@ def test_other_teacher_cannot_edit_story(client, teacher_user):
     url = reverse('story_edit', args=[story.id])
     response = client.post(url, updated_data)
 
-    # 5. Expect forbidden or redirect
+    # Expect forbidden or redirect
     assert response.status_code in [302, 403]
 
-    # 6. Ensure story content did not change
+    # Ensure story content did not change
     story.refresh_from_db()
     assert story.title == 'Original Title'
     assert story.description == 'Original description'
@@ -135,10 +135,10 @@ def test_other_teacher_cannot_edit_story(client, teacher_user):
 
 @pytest.mark.django_db
 def test_teacher_can_delete_own_story(logged_in_client_teacher, teacher_user):
-    # 1. Create a teacher user and log in
+    # Create a teacher user and log in
     client = logged_in_client_teacher
 
-    # 2. Create a story by this teacher
+    # Create a story by this teacher
     story = Story.objects.create(
         title='Delete Me',
         description='This will be deleted.',
@@ -146,22 +146,22 @@ def test_teacher_can_delete_own_story(logged_in_client_teacher, teacher_user):
         author=teacher_user
     )
 
-    # 3. Send POST request to delete the story
+    # Send POST request to delete the story
     url = reverse('story_delete', args=[story.id])
     response = client.post(url)
 
-    # 4. Check redirect (or success)
+    # Check redirect (or success)
     assert response.status_code in [302, 200]
 
-    # 5. Ensure the story is deleted from DB
+    # Ensure the story is deleted from DB
     assert not Story.objects.filter(id=story.id).exists()
 
 @pytest.mark.django_db
 def test_other_teacher_cannot_delete_story(client):
-    # 1. Create two teachers
+    # Create two teachers
     author = User.objects.create_user(username='authordelete', password='pass123', role='teacher')
 
-    # 2. Author creates a story
+    # Author creates a story
     story = Story.objects.create(
         title='Protected Story',
         description='Should not be deleted.',
@@ -169,26 +169,27 @@ def test_other_teacher_cannot_delete_story(client):
         author=author
     )
 
-    # 3. Log in as the second teacher
+    # Log in as the second teacher
     client.login(username='badteacher', password='pass123')
 
-    # 4. Attempt to delete the story
+    # Attempt to delete the story
     url = reverse('story_delete', args=[story.id])
     response = client.post(url)
 
-    # 5. Expect forbidden or redirect
+    # Expect forbidden or redirect
     assert response.status_code in [302, 403]
 
-    # 6. Ensure story still exists
+    # Ensure story still exists
     assert Story.objects.filter(id=story.id).exists()
 
 @pytest.mark.django_db
-def test_student_cannot_delete_story(client, student_user):
-    # 1. Create a teacher and a student
-    author = User.objects.create_user(username='teacherauth', password='pass123', role='teacher')
-    student = student_user
+def test_student_cannot_delete_story(logged_in_client_student):
+    client = logged_in_client_student
 
-    # 2. Author creates a story
+    # Create a teacher
+    author = User.objects.create_user(username='teacherauth', password='pass123', role='teacher')
+
+    # Author creates a story
     story = Story.objects.create(
         title='No Touchy',
         description='Protected from students.',
@@ -196,17 +197,14 @@ def test_student_cannot_delete_story(client, student_user):
         author=author
     )
 
-    # 3. Log in as student
-    client.login(username=student.username, password='pass')
-
-    # 4. Attempt to delete the story
+    # Attempt to delete the story
     url = reverse('story_delete', args=[story.id])
     response = client.post(url)
 
-    # 5. Expect forbidden or redirect
+    # Expect forbidden or redirect
     assert response.status_code in [302, 403]
 
-    # 6. Ensure story still exists
+    # Ensure story still exists
     assert Story.objects.filter(id=story.id).exists()
 
 
@@ -260,7 +258,6 @@ def test_anonymous_user_cannot_create_story(client):
 
 @pytest.mark.django_db
 def test_anonymous_user_cannot_access_story_views(client):
-    from django.urls import reverse
 
     story_id = 999  # Dummy ID – doesn't matter since we expect redirect before lookup
 
@@ -282,7 +279,9 @@ def test_anonymous_user_cannot_access_story_views(client):
         assert '/login' in response.url or 'accounts/login' in response.url
 
 @pytest.mark.django_db
-def test_student_cannot_access_teacher_views(client, teacher_user, student_user):
+def test_student_cannot_access_teacher_views(logged_in_client_student, teacher_user):
+    client = logged_in_client_student
+
     story = Story.objects.create(
         title='Protected',
         description='Teacher only',
@@ -290,8 +289,6 @@ def test_student_cannot_access_teacher_views(client, teacher_user, student_user)
         author=teacher_user,
         status='published'
     )
-
-    client.login(username=student_user.username, password='pass')
 
     urls = [
         reverse('story_create'),
@@ -306,7 +303,7 @@ def test_student_cannot_access_teacher_views(client, teacher_user, student_user)
         assert response.status_code in [403, 302]
 
 @pytest.mark.django_db
-def test_student_can_view_story_read_student(client, teacher_user, student_user):
+def test_student_can_view_story_read_student(teacher_user, logged_in_client_student):
     story = Story.objects.create(
         title='Public Story',
         description='Readable by students',
@@ -315,7 +312,7 @@ def test_student_can_view_story_read_student(client, teacher_user, student_user)
         status='published'
     )
 
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
 
     url = reverse('story_read_student', args=[story.id])
     response = client.get(url)
@@ -324,7 +321,7 @@ def test_student_can_view_story_read_student(client, teacher_user, student_user)
     assert b'This story is safe for students to view.' in response.content
 
 @pytest.mark.django_db
-def test_student_redirected_to_pre_reading_if_no_progress(client, teacher_user, student_user):
+def test_student_redirected_to_pre_reading_if_no_progress(teacher_user, logged_in_client_student):
     story = Story.objects.create(
         title='Fresh Start',
         description='No progress yet',
@@ -333,7 +330,7 @@ def test_student_redirected_to_pre_reading_if_no_progress(client, teacher_user, 
         status='published'
     )
 
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
 
     url = reverse('story_entry_point', args=[story.id])
     response = client.get(url)
@@ -342,7 +339,7 @@ def test_student_redirected_to_pre_reading_if_no_progress(client, teacher_user, 
     assert reverse('pre_reading_read', args=[story.id]) in response.url
 
 @pytest.mark.django_db
-def test_student_redirected_to_summary_after_finishing_pre_reading(client, teacher_user, student_user):
+def test_student_redirected_to_summary_after_finishing_pre_reading(teacher_user, logged_in_client_student):
 
     # Create a story
     story = Story.objects.create(
@@ -370,7 +367,7 @@ def test_student_redirected_to_summary_after_finishing_pre_reading(client, teach
     )
 
     # Log in as student
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
 
     # Simulate session with all pre-reading questions answered
     session = client.session
@@ -411,9 +408,9 @@ def test_teacher_can_view_only_their_own_stories(client):
     assert 'T2 Story' not in content
 
 @pytest.mark.django_db
-def test_student_cannot_access_my_stories(client, student_user):
+def test_student_cannot_access_my_stories(logged_in_client_student):
     # Log in as student
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
 
     # Attempt to access the teacher-only 'my_stories' page
     url = reverse('my_stories')
@@ -423,7 +420,7 @@ def test_student_cannot_access_my_stories(client, student_user):
     assert response.status_code in [302, 403]
 
 @pytest.mark.django_db
-def test_teacher_can_access_story_read_teacher_view(client, teacher_user):
+def test_teacher_can_access_story_read_teacher_view(logged_in_client_teacher, teacher_user):
     # 1. Teacher creates a story
     story = Story.objects.create(
         title='Secret Teacher View',
@@ -434,7 +431,7 @@ def test_teacher_can_access_story_read_teacher_view(client, teacher_user):
     )
 
     # 2. Log in as that teacher
-    client.login(username=teacher_user.username, password='pass')
+    client = logged_in_client_teacher
 
     # 3. Access the teacher view for this story
     url = reverse('story_read_teacher', args=[story.id])
@@ -446,11 +443,11 @@ def test_teacher_can_access_story_read_teacher_view(client, teacher_user):
 
 @pytest.mark.django_db
 def test_other_teacher_cannot_access_teacher_read_view(client):
-    # 1. Create two teachers
+    # Create two teachers
     author = User.objects.create_user(username='authorteacher', password='pass123', role='teacher')
     intruder = User.objects.create_user(username='intruderteacher', password='pass123', role='teacher')
 
-    # 2. Author creates a story
+    # Author creates a story
     story = Story.objects.create(
         title='Top Secret',
         description='For author only',
@@ -459,19 +456,19 @@ def test_other_teacher_cannot_access_teacher_read_view(client):
         status='published'
     )
 
-    # 3. Log in as intruder
+    # Log in as intruder
     client.login(username=intruder.username, password='pass123')
 
-    # 4. Try to access the teacher-only read view
+    # Try to access the teacher-only read view
     url = reverse('story_read_teacher', args=[story.id])
     response = client.get(url)
 
-    # 5. Should be forbidden or redirected
+    # Should be forbidden or redirected
     assert response.status_code in [302, 403]
 
 @pytest.mark.django_db
-def test_student_cannot_access_teacher_read_view(client, teacher_user, student_user):
-    # 1. Author teacher creates a story
+def test_student_cannot_access_teacher_read_view(teacher_user, logged_in_client_student):
+    # Author teacher creates a story
     story = Story.objects.create(
         title='Secret Stuff',
         description='Only for teachers',
@@ -480,23 +477,23 @@ def test_student_cannot_access_teacher_read_view(client, teacher_user, student_u
         status='published'
     )
 
-    # 2. Student logs in
-    client.login(username=student_user.username, password='pass')
+    # Student logs in
+    client = logged_in_client_student
 
-    # 3. Student tries to access the teacher-only view
+    # Student tries to access the teacher-only view
     url = reverse('story_read_teacher', args=[story.id])
     response = client.get(url)
 
-    # 4. Should be forbidden or redirect
+    # Should be forbidden or redirect
     assert response.status_code in [302, 403]
 
 @pytest.mark.django_db
 def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(client):
-    # 1. Create teacher and log in
+    # Create teacher and log in
     teacher = User.objects.create_user(username='teachertest', password='pass123', role='teacher')
     client.login(username='teachertest', password='pass123')
 
-    # 2. Create story authored by teacher
+    # Create story authored by teacher
     story = Story.objects.create(
         title='Story with Content',
         description='Something to test',
@@ -505,7 +502,7 @@ def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(client)
         status='published'
     )
 
-    # 3. Create pre- and post-reading items
+    # Create pre- and post-reading items
     pre = PreReadingExercise.objects.create(
         story=story,
         question_text='What’s the main idea?',
@@ -525,11 +522,11 @@ def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(client)
         explanation='Classic fairy tale ending.'
     )
 
-    # 4. Access the teacher read view
+    # Access the teacher read view
     url = reverse('story_read_teacher', args=[story.id])
     response = client.get(url)
 
-    # 5. Confirm everything is there
+    # Confirm everything is there
     assert response.status_code == 200
     content = response.content.decode()
     assert 'Story with Content' in content
@@ -537,7 +534,7 @@ def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(client)
     assert 'What happened at the end?' in content
 
 @pytest.mark.django_db
-def test_student_redirected_to_summary_if_all_pre_reading_done(client, teacher_user, student_user):
+def test_student_redirected_to_summary_if_all_pre_reading_done(teacher_user, logged_in_client_student):
     # 1. Create a story
     story = Story.objects.create(
         title='Finished Story',
@@ -563,25 +560,25 @@ def test_student_redirected_to_summary_if_all_pre_reading_done(client, teacher_u
         is_option_2_correct=True
     )
 
-    # 3. Log in as student
-    client.login(username=student_user.username, password='pass')
+    # Log in as student
+    client = logged_in_client_student
 
-    # 4. Simulate session where both exercises are already answered
+    # Simulate session where both exercises are already answered
     session = client.session
     session[f'pre_reading_progress_{story.id}'] = [ex1.id, ex2.id]
     session.save()
 
-    # 5. Access the pre-reading view
+    # Access the pre-reading view
     url = reverse('pre_reading_read', args=[story.id])
     response = client.get(url)
 
-    # 6. Check redirection to summary
+    # Check redirection to summary
     assert response.status_code == 302
     assert reverse('pre_reading_summary', args=[story.id]) in response.url
 
 @pytest.mark.django_db
-def test_student_sees_next_pre_reading_question_if_not_all_done(client, teacher_user, student_user):
-    # 1. Create a story
+def test_student_sees_next_pre_reading_question_if_not_all_done(teacher_user, logged_in_client_student):
+    # Create a story
     story = Story.objects.create(
         title='Halfway There',
         description='One question done',
@@ -590,7 +587,7 @@ def test_student_sees_next_pre_reading_question_if_not_all_done(client, teacher_
         status='published'
     )
 
-    # 2. Create 2 exercises
+    # Create 2 exercises
     ex1 = PreReadingExercise.objects.create(
         story=story,
         question_text='Q1?',
@@ -606,26 +603,26 @@ def test_student_sees_next_pre_reading_question_if_not_all_done(client, teacher_
         is_option_2_correct=True
     )
 
-    # 3. Login as student
-    client.login(username=student_user.username, password='pass')
+    # Login as student
+    client = logged_in_client_student
 
-    # 4. Simulate session with only first question done
+    # Simulate session with only first question done
     session = client.session
     session[f'pre_reading_progress_{story.id}'] = [ex1.id]
     session.save()
 
-    # 5. Hit the pre-reading route
+    # Hit the pre-reading route
     url = reverse('pre_reading_read', args=[story.id])
     response = client.get(url)
 
-    # 6. Should NOT redirect to summary
+    # Should NOT redirect to summary
     assert response.status_code == 200
     content = response.content.decode()
     assert 'Q2?' in content
 
 @pytest.mark.django_db
-def test_student_redirected_to_summary_if_all_pre_reading_done(client, teacher_user, student_user):
-    # 1. Create a story
+def test_student_redirected_to_summary_if_all_pre_reading_done(teacher_user, logged_in_client_student):
+    # Create a story
     story = Story.objects.create(
         title='Complete Story',
         description='All exercises done',
@@ -634,7 +631,7 @@ def test_student_redirected_to_summary_if_all_pre_reading_done(client, teacher_u
         status='published'
     )
 
-    # 2. Create two pre-reading questions
+    # Create two pre-reading questions
     ex1 = PreReadingExercise.objects.create(
         story=story,
         question_text='First Q?',
@@ -650,24 +647,24 @@ def test_student_redirected_to_summary_if_all_pre_reading_done(client, teacher_u
         is_option_2_correct=True
     )
 
-    # 3. Log in as student
-    client.login(username=student_user.username, password='pass')
+    # Log in as student
+    client = logged_in_client_student
 
-    # 4. Simulate session where both are answered
+    # Simulate session where both are answered
     session = client.session
     session[f'pre_reading_progress_{story.id}'] = [ex1.id, ex2.id]
     session.save()
 
-    # 5. Access the pre-reading view
+    # Access the pre-reading view
     url = reverse('pre_reading_read', args=[story.id])
     response = client.get(url)
 
-    # 6. Should redirect to summary page
+    # Should redirect to summary page
     assert response.status_code == 302
     assert reverse('pre_reading_summary', args=[story.id]) in response.url
 
 @pytest.mark.django_db
-def test_student_redirected_to_pre_reading_if_no_progress(client, teacher_user, student_user):
+def test_student_redirected_to_pre_reading_if_no_progress(teacher_user, logged_in_client_student):
     story = Story.objects.create(
         title='Fresh Start',
         description='No progress yet',
@@ -676,7 +673,7 @@ def test_student_redirected_to_pre_reading_if_no_progress(client, teacher_user, 
         status='published'
     )
 
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
 
     url = reverse('story_entry_point', args=[story.id])
     response = client.get(url)
@@ -685,7 +682,7 @@ def test_student_redirected_to_pre_reading_if_no_progress(client, teacher_user, 
     assert reverse('pre_reading_read', args=[story.id]) in response.url
 
 @pytest.mark.django_db
-def test_student_redirected_to_summary_after_finishing_pre_reading(client, teacher_user, student_user):
+def test_student_redirected_to_summary_after_finishing_pre_reading(teacher_user, logged_in_client_student):
     story = Story.objects.create(
         title='Summary Redirect Test',
         description='Test redirection to pre-reading summary',
@@ -711,7 +708,7 @@ def test_student_redirected_to_summary_after_finishing_pre_reading(client, teach
     )
 
     # Log in as student
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
 
     # Simulate session with all pre-reading questions answered
     session = client.session
@@ -728,7 +725,7 @@ def test_student_redirected_to_summary_after_finishing_pre_reading(client, teach
 
 @pytest.mark.django_db
 def test_student_cannot_access_summary_without_completing_all_questions(client, teacher_user, student_user):
-    # 1. Create story
+    # Create story
     story = Story.objects.create(
         title='Half Done',
         description='Incomplete attempt',
@@ -737,7 +734,7 @@ def test_student_cannot_access_summary_without_completing_all_questions(client, 
         status='published'
     )
 
-    # 2. Create two pre-reading exercises
+    # Create two pre-reading exercises
     exercise1 = PreReadingExercise.objects.create(
         story=story,
         question_text='Easy Q1',
@@ -753,19 +750,19 @@ def test_student_cannot_access_summary_without_completing_all_questions(client, 
         is_option_2_correct=True
     )
 
-    # 3. Log in as student
+    # Log in as student
     client.login(username=student_user.username, password='pass')
 
-    # 4. Simulate student only answered ONE question
+    # Simulate student only answered ONE question
     session = client.session
     session[f'pre_reading_progress_{story.id}'] = [exercise1.id]  # not all answered!
     session.save()
 
-    # 5. Try to access the summary
+    # Try to access the summary
     url = reverse('pre_reading_summary', args=[story.id])
     response = client.get(url)
 
-    # 6. Should redirect to continue answering
+    # Should redirect to continue answering
     assert response.status_code == 302
     assert reverse('pre_reading_read', args=[story.id]) in response.url
 
@@ -818,7 +815,7 @@ def test_student_sees_published_story_title_and_description_on_homepage(client, 
     assert 'Should appear on homepage' in content
 
 @pytest.mark.django_db
-def test_student_cannot_access_teacher_view_directly(client, teacher_user, student_user):
+def test_student_cannot_access_teacher_view_directly(teacher_user, logged_in_client_student):
     # Create a published story
     story = Story.objects.create(
         title='Forbidden Access',
@@ -829,7 +826,7 @@ def test_student_cannot_access_teacher_view_directly(client, teacher_user, stude
     )
 
     # Log in as student
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
 
     # Try to access the teacher view URL
     url = reverse('story_read_teacher', args=[story.id])
@@ -856,9 +853,9 @@ def test_anonymous_cannot_access_student_view(client, teacher_user):
 
 # Student cannot access another student’s profile
 @pytest.mark.django_db
-def test_student_cannot_access_others_profile(client, student_user):
+def test_student_cannot_access_others_profile(logged_in_client_student):
     other_student = User.objects.create_user(username='student2', password='pass', role='student')
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
     url = reverse('profile_detail', args=[other_student.id])
     response = client.get(url)
     assert response.status_code in [403, 302]  # depends on your implementation
@@ -866,9 +863,9 @@ def test_student_cannot_access_others_profile(client, student_user):
 
 # Teacher can access another student’s profile
 @pytest.mark.django_db
-def test_teacher_can_access_student_profile(client, teacher_user):
+def test_teacher_can_access_student_profile(logged_in_client_teacher):
     student = User.objects.create_user(username='student3', password='pass', role='student')
-    client.login(username=teacher_user.username, password='pass')
+    client = logged_in_client_teacher
     url = reverse('profile_detail', args=[student.id])
     response = client.get(url)
     assert response.status_code == 200
@@ -877,10 +874,10 @@ def test_teacher_can_access_student_profile(client, teacher_user):
 
 # Student sees only published stories
 @pytest.mark.django_db
-def test_student_sees_only_published_stories_on_home(client, student_user, teacher_user):
+def test_student_sees_only_published_stories_on_home(logged_in_client_student, teacher_user):
     Story.objects.create(title="Pub", description="Visible", content="...", author=teacher_user, status="published")
     Story.objects.create(title="Draft", description="Hidden", content="...", author=teacher_user, status="draft")
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
     response = client.get(reverse("home"))
     content = response.content.decode()
     assert "Pub" in content
@@ -889,10 +886,10 @@ def test_student_sees_only_published_stories_on_home(client, student_user, teach
 
 # Teacher sees both draft and published stories on home
 @pytest.mark.django_db
-def test_teacher_sees_all_stories_on_home(client, teacher_user):
+def test_teacher_sees_all_stories_on_home(logged_in_client_teacher, teacher_user):
     Story.objects.create(title="Pub", description="Visible", content="...", author=teacher_user, status="published")
     Story.objects.create(title="Draft", description="Hidden", content="...", author=teacher_user, status="draft")
-    client.login(username=teacher_user.username, password='pass')
+    client = logged_in_client_teacher
     response = client.get(reverse("home"))
     content = response.content.decode()
     assert "Pub" in content
@@ -901,9 +898,9 @@ def test_teacher_sees_all_stories_on_home(client, teacher_user):
 
 # Teacher cannot access student-only read view
 @pytest.mark.django_db
-def test_teacher_cannot_access_student_read_view(client, teacher_user):
+def test_teacher_cannot_access_student_read_view(logged_in_client_teacher, teacher_user):
     story = Story.objects.create(title='Student View', description='Not for teachers', content='...', author=teacher_user, status='published')
-    client.login(username=teacher_user.username, password='pass')
+    client = logged_in_client_teacher
     url = reverse('story_read_student', args=[story.id])
     response = client.get(url)
     assert response.status_code in [403, 302]
@@ -919,9 +916,9 @@ def test_anonymous_cannot_access_profile_page(client):
 
 # Student cannot access teacher-only 'manage_questions'
 @pytest.mark.django_db
-def test_student_cannot_access_manage_questions(client, teacher_user, student_user):
+def test_student_cannot_access_manage_questions(teacher_user, logged_in_client_student):
     story = Story.objects.create(title="Story", description="...", content="...", author=teacher_user, status="published")
-    client.login(username=student_user.username, password='pass')
+    client = logged_in_client_student
     url = reverse('manage_questions', args=[story.id])
     response = client.get(url)
     assert response.status_code in [403, 302]
