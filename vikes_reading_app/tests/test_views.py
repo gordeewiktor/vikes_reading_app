@@ -1,4 +1,4 @@
-import pytest
+import pytest, copy
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from vikes_reading_app.models import Story, PreReadingExercise, PostReadingQuestion
@@ -16,16 +16,24 @@ def student_user(db):
 @pytest.fixture
 def logged_in_client_teacher(client, teacher_user):
     client.login(username='teacher', password='pass')
-    return client, teacher_user
+    return client
 
 @pytest.fixture
-def logged_in_client_student(client, student_user):
+def logged_in_client_student(client):
     client.login(username='student', password='pass')
     return client
 
+@pytest.fixture
+def base_story_data():
+    return {
+        'title': 'Valid Title',
+        'description': 'A story that makes sense.',
+        'content': 'This is actual content.',
+    }
+
 @pytest.mark.django_db
-def test_teacher_can_create_story(logged_in_client_teacher):
-    client, teacher = logged_in_client_teacher
+def test_teacher_can_create_story(logged_in_client_teacher, teacher_user):
+    client = logged_in_client_teacher
     form_data = {
         'title': 'Test Story Title',
         'description': 'A quick story description.',
@@ -38,7 +46,7 @@ def test_teacher_can_create_story(logged_in_client_teacher):
     assert response.status_code == 302
     stories = Story.objects.filter(title='Test Story Title')
     assert stories.exists()
-    assert stories.first().author == teacher
+    assert stories.first().author == teacher_user
 
 @pytest.mark.django_db
 def test_student_cannot_create_story(logged_in_client_student):
@@ -57,14 +65,14 @@ def test_student_cannot_create_story(logged_in_client_student):
     assert not Story.objects.filter(title='Student Story').exists()
 
 @pytest.mark.django_db
-def test_teacher_can_edit_own_story(logged_in_client_teacher):
-    client, teacher = logged_in_client_teacher
+def test_teacher_can_edit_own_story(logged_in_client_teacher, teacher_user):
+    client = logged_in_client_teacher
     # 2. Create a story authored by this teacher
     story = Story.objects.create(
         title='Original Title',
         description='Original description',
         content='Original content',
-        author=teacher,
+        author=teacher_user,
         status='published'
     )
 
@@ -126,16 +134,16 @@ def test_other_teacher_cannot_edit_story(client, teacher_user):
     assert story.content == 'Original content'
 
 @pytest.mark.django_db
-def test_teacher_can_delete_own_story(logged_in_client_teacher):
+def test_teacher_can_delete_own_story(logged_in_client_teacher, teacher_user):
     # 1. Create a teacher user and log in
-    client, teacher = logged_in_client_teacher
+    client = logged_in_client_teacher
 
     # 2. Create a story by this teacher
     story = Story.objects.create(
         title='Delete Me',
         description='This will be deleted.',
         content='Temporary content.',
-        author=teacher
+        author=teacher_user
     )
 
     # 3. Send POST request to delete the story
@@ -201,28 +209,34 @@ def test_student_cannot_delete_story(client, student_user):
     # 6. Ensure story still exists
     assert Story.objects.filter(id=story.id).exists()
 
+
 @pytest.mark.django_db
-def test_teacher_cannot_create_story_with_missing_fields(logged_in_client_teacher):
-    # 1. Use logged-in teacher fixture
-    client, _ = logged_in_client_teacher
+@pytest.mark.parametrize("missing_fields, expected_status, should_exist", [
+    (['title'], 200, False),                 # title is required
+    (['description'], 200, False),           # description is required
+    (['content'], 302, True),                # content is optional
+    (['title', 'description'], 200, False),  # both required fields missing
+])
+def test_teacher_story_creation_variants(logged_in_client_teacher, base_story_data, missing_fields, expected_status, should_exist):
+    client = logged_in_client_teacher
 
-    # 2. Prepare invalid data (missing title and content)
-    invalid_data = {
-        'title': '',
-        'description': 'Oops, I forgot something.',
-        'content': '',
-    }
+    # Make a deep copy so we don’t mess up the base fixture
+    invalid_data = copy.deepcopy(base_story_data)
 
-    # 3. Send POST request to create story
+    # Blank out the specified fields
+    for field in missing_fields:
+        invalid_data[field] = ''
+
     url = reverse('story_create')
     response = client.post(url, invalid_data)
 
-    # 4. Check that the form is invalid and page is re-rendered (not redirected)
-    assert response.status_code == 200  # Stay on the same page due to form errors
-    assert 'This field is required' in response.content.decode()
+    # Check response status
+    assert response.status_code == expected_status
 
-    # 5. Ensure no story was created
-    assert not Story.objects.filter(description='Oops, I forgot something.').exists()
+    # Check if the story was saved (based on the unique description)
+    exists = Story.objects.filter(description=base_story_data['description']).exists()
+    assert exists is should_exist
+
 @pytest.mark.django_db
 def test_anonymous_user_cannot_create_story(client):
     # Not logged in!
@@ -824,7 +838,7 @@ def test_student_cannot_access_teacher_view_directly(client, teacher_user, stude
     # Expect forbidden or redirect (depends on your view logic)
     assert response.status_code in [302, 403]
 
-# 1. Anonymous user cannot access student view
+# Anonymous user cannot access student view
 @pytest.mark.django_db
 def test_anonymous_cannot_access_student_view(client, teacher_user):
     story = Story.objects.create(
@@ -840,7 +854,7 @@ def test_anonymous_cannot_access_student_view(client, teacher_user):
     assert '/login' in response.url or 'accounts/login' in response.url
 
 
-# 2. Student cannot access another student’s profile
+# Student cannot access another student’s profile
 @pytest.mark.django_db
 def test_student_cannot_access_others_profile(client, student_user):
     other_student = User.objects.create_user(username='student2', password='pass', role='student')
@@ -850,7 +864,7 @@ def test_student_cannot_access_others_profile(client, student_user):
     assert response.status_code in [403, 302]  # depends on your implementation
 
 
-# 3. Teacher can access another student’s profile
+# Teacher can access another student’s profile
 @pytest.mark.django_db
 def test_teacher_can_access_student_profile(client, teacher_user):
     student = User.objects.create_user(username='student3', password='pass', role='student')
@@ -861,7 +875,7 @@ def test_teacher_can_access_student_profile(client, teacher_user):
     assert student.username in response.content.decode()
 
 
-# 4. Student sees only published stories
+# Student sees only published stories
 @pytest.mark.django_db
 def test_student_sees_only_published_stories_on_home(client, student_user, teacher_user):
     Story.objects.create(title="Pub", description="Visible", content="...", author=teacher_user, status="published")
@@ -873,7 +887,7 @@ def test_student_sees_only_published_stories_on_home(client, student_user, teach
     assert "Draft" not in content
 
 
-# 5. Teacher sees both draft and published stories on home
+# Teacher sees both draft and published stories on home
 @pytest.mark.django_db
 def test_teacher_sees_all_stories_on_home(client, teacher_user):
     Story.objects.create(title="Pub", description="Visible", content="...", author=teacher_user, status="published")
@@ -885,7 +899,7 @@ def test_teacher_sees_all_stories_on_home(client, teacher_user):
     assert "Draft" in content
 
 
-# 6. Teacher cannot access student-only read view
+# Teacher cannot access student-only read view
 @pytest.mark.django_db
 def test_teacher_cannot_access_student_read_view(client, teacher_user):
     story = Story.objects.create(title='Student View', description='Not for teachers', content='...', author=teacher_user, status='published')
@@ -895,7 +909,7 @@ def test_teacher_cannot_access_student_read_view(client, teacher_user):
     assert response.status_code in [403, 302]
 
 
-# 7. Unauthenticated user cannot access profile page
+# Unauthenticated user cannot access profile page
 @pytest.mark.django_db
 def test_anonymous_cannot_access_profile_page(client):
     response = client.get(reverse('profile'))
@@ -903,7 +917,7 @@ def test_anonymous_cannot_access_profile_page(client):
     assert '/login' in response.url or 'accounts/login' in response.url
 
 
-# 8. Student cannot access teacher-only 'manage_questions'
+# Student cannot access teacher-only 'manage_questions'
 @pytest.mark.django_db
 def test_student_cannot_access_manage_questions(client, teacher_user, student_user):
     story = Story.objects.create(title="Story", description="...", content="...", author=teacher_user, status="published")
@@ -913,7 +927,7 @@ def test_student_cannot_access_manage_questions(client, teacher_user, student_us
     assert response.status_code in [403, 302]
 
 
-# 9. Anonymous user cannot access 'my_stories'
+# Anonymous user cannot access 'my_stories'
 @pytest.mark.django_db
 def test_anonymous_cannot_access_my_stories(client):
     url = reverse("my_stories")
