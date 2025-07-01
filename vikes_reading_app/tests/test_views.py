@@ -75,6 +75,19 @@ def two_pre_reading_exercises(published_story):
     )
     return ex1, ex2
 
+@pytest.fixture
+def post_reading_question(published_story):
+    return PostReadingQuestion.objects.create(
+        story=published_story,
+        question_text='What happened at the end?',
+        option_1='They fought a dragon.',
+        option_2='They lived happily ever after.',
+        option_3='They moved to Mars.',
+        option_4='They went to bed.',
+        correct_option=2,
+        explanation='Classic fairy tale ending.'
+    )
+
 @pytest.mark.django_db
 def test_teacher_can_create_story(logged_in_client_teacher, teacher_user, base_story_data):
     client = logged_in_client_teacher
@@ -363,7 +376,11 @@ def test_student_cannot_access_teacher_read_view(published_story, logged_in_clie
     assert response.status_code in [302, 403]
 
 @pytest.mark.django_db
-def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(logged_in_client_teacher, published_story):
+def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(
+    logged_in_client_teacher, 
+    published_story,
+    post_reading_question
+    ):
     # Create teacher and log in
     
     client = logged_in_client_teacher
@@ -375,17 +392,6 @@ def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(logged_
         option_1='Option A',
         option_2='Option B',
         is_option_1_correct=True
-    )
-
-    post = PostReadingQuestion.objects.create(
-        story=published_story,
-        question_text='What happened at the end?',
-        option_1='They fought a dragon.',
-        option_2='They lived happily ever after.',
-        option_3='They moved to Mars.',
-        option_4='They went to bed.',
-        correct_option=2,  # Option 2 is correct
-        explanation='Classic fairy tale ending.'
     )
 
     # Access the teacher read view
@@ -539,35 +545,37 @@ def test_teacher_can_access_student_profile(logged_in_client_teacher):
 
 # Student sees only published stories
 @pytest.mark.django_db
-def test_student_sees_only_published_stories_on_home(logged_in_client_student, teacher_user):
-    Story.objects.create(title="Pub", description="Visible", content="...", author=teacher_user, status="published")
-    Story.objects.create(title="Draft", description="Hidden", content="...", author=teacher_user, status="draft")
-    client = logged_in_client_student
-    response = client.get(reverse("home"))
+def test_student_sees_only_published_stories_on_home(
+    logged_in_client_student, 
+    published_story, 
+    draft_story):
+    
+    response = logged_in_client_student.get(reverse("home"))
     content = response.content.decode()
-    assert "Pub" in content
-    assert "Draft" not in content
+    assert "Published Story" in content
+    assert "Draft Story" not in content
 
 
 # Teacher sees both draft and published stories on home
 @pytest.mark.django_db
-def test_teacher_sees_all_stories_on_home(logged_in_client_teacher, teacher_user):
-    Story.objects.create(title="Pub", description="Visible", content="...", author=teacher_user, status="published")
-    Story.objects.create(title="Draft", description="Hidden", content="...", author=teacher_user, status="draft")
-    client = logged_in_client_teacher
-    response = client.get(reverse("home"))
+def test_teacher_sees_all_stories_on_home(
+    logged_in_client_teacher, 
+    published_story, 
+    draft_story
+    ):
+
+    response = logged_in_client_teacher.get(reverse("home"))
     content = response.content.decode()
-    assert "Pub" in content
-    assert "Draft" in content
+    assert "Published Story" in content
+    assert "Draft Story" in content
 
 
 # Teacher cannot access student-only read view
 @pytest.mark.django_db
-def test_teacher_cannot_access_student_read_view(logged_in_client_teacher, teacher_user):
-    story = Story.objects.create(title='Student View', description='Not for teachers', content='...', author=teacher_user, status='published')
-    client = logged_in_client_teacher
-    url = reverse('story_read_student', args=[story.id])
-    response = client.get(url)
+def test_teacher_cannot_access_student_read_view(logged_in_client_teacher, published_story):
+    
+    url = reverse('story_read_student', args=[published_story.id])
+    response = logged_in_client_teacher.get(url)
     assert response.status_code in [403, 302]
 
 
