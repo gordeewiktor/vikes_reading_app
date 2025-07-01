@@ -57,6 +57,24 @@ def draft_story(teacher_user):
         status="draft"
     )
 
+@pytest.fixture
+def two_pre_reading_exercises(published_story):
+    ex1 = PreReadingExercise.objects.create(
+        story=published_story,
+        question_text="Q1?",
+        option_1="A",
+        option_2="B",
+        is_option_1_correct=True
+    )
+    ex2 = PreReadingExercise.objects.create(
+        story=published_story,
+        question_text="Q2?",
+        option_1="C",
+        option_2="D",
+        is_option_2_correct=True
+    )
+    return ex1, ex2
+
 @pytest.mark.django_db
 def test_teacher_can_create_story(logged_in_client_teacher, teacher_user, base_story_data):
     client = logged_in_client_teacher
@@ -382,15 +400,10 @@ def test_teacher_can_see_pre_and_post_reading_items_in_teacher_read_view(logged_
     assert 'What happened at the end?' in content
 
 @pytest.mark.django_db
-def test_student_redirected_to_summary_after_finishing_all_pre_reading(published_story, logged_in_client_student):
+def test_student_redirected_to_summary_after_finishing_all_pre_reading(published_story, logged_in_client_student, two_pre_reading_exercises):
     story = published_story
 
-    ex1 = PreReadingExercise.objects.create(
-        story=story, question_text="Q1?", option_1="A", option_2="B", is_option_1_correct=True
-    )
-    ex2 = PreReadingExercise.objects.create(
-        story=story, question_text="Q2?", option_1="C", option_2="D", is_option_2_correct=True
-    )
+    ex1, ex2 = two_pre_reading_exercises
 
     client = logged_in_client_student
     session = client.session
@@ -403,25 +416,12 @@ def test_student_redirected_to_summary_after_finishing_all_pre_reading(published
     assert reverse('pre_reading_summary', args=[story.id]) in response.url
 
 @pytest.mark.django_db
-def test_student_sees_next_pre_reading_question_if_not_all_done(published_story, logged_in_client_student):
+def test_student_sees_next_pre_reading_question_if_not_all_done(published_story, logged_in_client_student, two_pre_reading_exercises):
     # Create a story
     story = published_story
 
     # Create 2 exercises
-    ex1 = PreReadingExercise.objects.create(
-        story=story,
-        question_text='Q1?',
-        option_1='Yes',
-        option_2='No',
-        is_option_1_correct=True
-    )
-    ex2 = PreReadingExercise.objects.create(
-        story=story,
-        question_text='Q2?',
-        option_1='Maybe',
-        option_2='Never',
-        is_option_2_correct=True
-    )
+    ex1, ex2 = two_pre_reading_exercises
 
     # Login as student
     client = logged_in_client_student
@@ -453,32 +453,19 @@ def test_student_redirected_to_pre_reading_if_no_progress(published_story, logge
     assert reverse('pre_reading_read', args=[story.id]) in response.url
 
 @pytest.mark.django_db
-def test_student_cannot_access_summary_without_completing_all_questions(published_story, logged_in_client_student):
+def test_student_cannot_access_summary_without_completing_all_questions(published_story, logged_in_client_student, two_pre_reading_exercises):
     # Create story
     story = published_story
 
     # Create two pre-reading exercises
-    exercise1 = PreReadingExercise.objects.create(
-        story=story,
-        question_text='Easy Q1',
-        option_1='Yes',
-        option_2='No',
-        is_option_1_correct=True
-    )
-    exercise2 = PreReadingExercise.objects.create(
-        story=story,
-        question_text='Easy Q2',
-        option_1='Maybe',
-        option_2='Never',
-        is_option_2_correct=True
-    )
+    ex1, ex2 = two_pre_reading_exercises
 
     # Log in as student
     client = logged_in_client_student
 
     # Simulate student only answered ONE question
     session = client.session
-    session[f'pre_reading_progress_{story.id}'] = [exercise1.id]  # not all answered!
+    session[f'pre_reading_progress_{story.id}'] = [ex1.id]  # not all answered!
     session.save()
 
     # Try to access the summary
