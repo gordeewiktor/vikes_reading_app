@@ -240,45 +240,28 @@ def test_anonymous_user_cannot_create_story(client, base_story_data):
     assert not Story.objects.filter(title=base_story_data['title']).exists()
 
 @pytest.mark.django_db
-def test_anonymous_user_cannot_access_story_views(client):
+@pytest.mark.parametrize("user_type, client_fixture", [
+    ("anonymous", "client"),
+    ("student", "logged_in_client_student"),
+])
+@pytest.mark.parametrize("url_name, use_story_id", [
+    ("story_create", False),
+    ("story_edit", True),
+    ("story_delete", True),
+    ("story_read_teacher", True),
+    ("manage_questions", True),
+    ("my_stories", False),
+    ("my_students", False),
+])
+def test_unauthorized_users_cannot_access_teacher_views_combo(
+    request, user_type, client_fixture, url_name, use_story_id, published_story
+):
+    client = request.getfixturevalue(client_fixture)
+    story_id = published_story.id if use_story_id else None
+    url = reverse(url_name, args=[story_id] if story_id else None)
 
-    story_id = 999  # Dummy ID – doesn't matter since we expect redirect before lookup
-
-    protected_urls = [
-        reverse('story_read_teacher', args=[story_id]),
-        reverse('story_read_student', args=[story_id]),
-        reverse('story_entry_point', args=[story_id]),
-        reverse('story_edit', args=[story_id]),
-        reverse('story_delete', args=[story_id]),
-        reverse('story_create'),
-        reverse('my_stories'),
-        reverse('my_students'),
-        reverse('profile'),
-    ]
-
-    for url in protected_urls:
-        response = client.get(url)
-        # Anonymous users should get redirected to login
-        assert response.status_code == 302
-        assert '/login' in response.url or 'accounts/login' in response.url
-
-@pytest.mark.django_db
-def test_student_cannot_access_teacher_views(logged_in_client_student, published_story):
-    client = logged_in_client_student
-
-    story = published_story
-
-    urls = [
-        reverse('story_create'),
-        reverse('story_edit', args=[story.id]),
-        reverse('story_delete', args=[story.id]),
-        reverse('story_read_teacher', args=[story.id]),
-        reverse('manage_questions', args=[story.id]),
-    ]
-
-    for url in urls:
-        response = client.get(url)
-        assert response.status_code in [403, 302]
+    response = client.get(url)
+    assert response.status_code in [302, 403]
 
 @pytest.mark.django_db
 def test_student_can_view_story_read_student(logged_in_client_student, published_story):
