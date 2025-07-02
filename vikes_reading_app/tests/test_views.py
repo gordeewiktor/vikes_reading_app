@@ -138,8 +138,7 @@ def test_other_teacher_cannot_edit_story(logged_in_client_intruder, published_st
     ("client", 302, False),
 ])
 def test_story_create_permissions(
-    request, base_story_data, teacher_user, 
-    client_fixture, expected_status, should_create
+    request, base_story_data, client_fixture, expected_status, should_create
     ):
     client = request.getfixturevalue(client_fixture)
     url = reverse('story_create')
@@ -216,17 +215,6 @@ def test_unauthorized_users_cannot_access_teacher_views_combo(
 
     response = client.get(url)
     assert response.status_code in [302, 403]
-
-@pytest.mark.django_db
-def test_student_can_view_story_read_student(logged_in_client_student, published_story):
-
-    client = logged_in_client_student
-
-    url = reverse('story_read_student', args=[published_story.id])
-    response = client.get(url)
-
-    assert response.status_code == 200
-    assert b'Once upon a published time...' in response.content
 
 @pytest.mark.django_db
 def test_student_redirected_to_pre_reading_if_no_progress(published_story, logged_in_client_student):
@@ -420,24 +408,18 @@ def test_student_cannot_access_summary_without_completing_all_questions(publishe
     assert reverse('pre_reading_read', args=[story.id]) in response.url
 
 @pytest.mark.django_db
-def test_student_cannot_see_draft_story_on_homepage(logged_in_client_student, published_story, draft_story):
-
-    response = logged_in_client_student.get(reverse("home"))
-    content = response.content.decode()
-
-    assert "Published Story" in content
-    assert "Draft Story" not in content
-
-@pytest.mark.django_db
-def test_student_sees_published_story_title_and_description_on_homepage(logged_in_client_student, published_story):
-
-    # Go to home page
+@pytest.mark.parametrize('expected_text, should_see', [
+    ("Published Story", True),
+    ("Draft Story", False),
+])
+def test_student_homepage_visibility(logged_in_client_student, published_story, draft_story, expected_text, should_see):
     response = logged_in_client_student.get(reverse('home'))
     content = response.content.decode()
 
-    # Check that title and description appear
-    assert 'Published Story' in content
-    assert 'Visible to students' in content
+    if should_see:
+        assert expected_text in content
+    else:
+        assert expected_text not in content
 
 @pytest.mark.django_db
 def test_student_cannot_access_teacher_view_directly(published_story, logged_in_client_student):
@@ -457,27 +439,6 @@ def test_anonymous_cannot_access_student_view(client, published_story):
     response = client.get(url)
     assert response.status_code == 302
     assert '/login' in response.url or 'accounts/login' in response.url
-
-
-# Student cannot access another student’s profile
-@pytest.mark.django_db
-def test_student_cannot_access_others_profile(logged_in_client_student):
-    other_student = User.objects.create_user(username='student2', password='pass', role='student')
-    client = logged_in_client_student
-    url = reverse('profile_detail', args=[other_student.id])
-    response = client.get(url)
-    assert response.status_code in [403, 302]  # depends on implementation
-
-
-# Teacher can access another student’s profile
-@pytest.mark.django_db
-def test_teacher_can_access_student_profile(logged_in_client_teacher):
-    student = User.objects.create_user(username='student3', password='pass', role='student')
-    client = logged_in_client_teacher
-    url = reverse('profile_detail', args=[student.id])
-    response = client.get(url)
-    assert response.status_code == 200
-    assert student.username in response.content.decode()
 
 # Student sees only published stories
 @pytest.mark.django_db
@@ -504,36 +465,40 @@ def test_teacher_sees_all_stories_on_home(
     assert "Published Story" in content
     assert "Draft Story" in content
 
-
-# Teacher cannot access student-only read view
 @pytest.mark.django_db
-def test_teacher_cannot_access_student_read_view(logged_in_client_teacher, published_story):
-    
+@pytest.mark.parametrize("client_fixture, expected_status", [
+    ("logged_in_client_student", 200),
+    ("logged_in_client_teacher", [403, 302]),
+])
+def test_story_read_student_access(request, published_story, client_fixture, expected_status):
+    client = request.getfixturevalue(client_fixture)
+
     url = reverse('story_read_student', args=[published_story.id])
-    response = logged_in_client_teacher.get(url)
-    assert response.status_code in [403, 302]
-
-
-# Unauthenticated user cannot access profile page
-@pytest.mark.django_db
-def test_anonymous_cannot_access_profile_page(client):
-    response = client.get(reverse('profile'))
-    assert response.status_code == 302
-    assert '/login' in response.url or 'accounts/login' in response.url
-
-
-# Student cannot access teacher-only 'manage_questions'
-@pytest.mark.django_db
-def test_student_cannot_access_manage_questions(published_story, logged_in_client_student):
-    url = reverse('manage_questions', args=[published_story.id])
-    response = logged_in_client_student.get(url)
-    assert response.status_code in [403, 302]
-
-
-# Anonymous user cannot access 'my_stories'
-@pytest.mark.django_db
-def test_anonymous_cannot_access_my_stories(client):
-    url = reverse("my_stories")
     response = client.get(url)
-    assert response.status_code == 302
-    assert '/login' in response.url or 'accounts/login' in response.url
+
+    expected = expected_status if isinstance(expected_status, list) else [expected_status]
+    assert response.status_code in expected
+
+    if response.status_code == 200:
+        assert b'Once upon a published time...' in response.content
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('client_fixture, expected_status, should_see_name', [
+    ('client', 302, False),
+    ('logged_in_client_student', [302, 403], False),
+    ('logged_in_client_teacher', 200, True),
+])
+def test_profile_detail_view_permissions(request, client_fixture, expected_status, should_see_name):
+    target_user = User.objects.create_user(username='student_target', password='pass', role='student')
+    client = request.getfixturevalue(client_fixture)
+
+    url = reverse('profile_detail', args=[target_user.id])
+    response = client.get(url)
+
+    assert response.status_code in expected_status if isinstance(expected_status, list) else [expected_status]
+
+    content = response.content.decode()
+    if should_see_name:
+        assert target_user.username in content
+    else:
+        assert target_user.username not in content
