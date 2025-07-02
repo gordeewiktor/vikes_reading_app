@@ -155,49 +155,19 @@ def test_other_teacher_cannot_edit_story(logged_in_client_intruder, published_st
     assert story.content == 'Once upon a published time...'
 
 @pytest.mark.django_db
-def test_teacher_can_delete_own_story(logged_in_client_teacher, published_story):
-    
-    client = logged_in_client_teacher
+@pytest.mark.parametrize(('client_fixture', 'expected_status', 'should_exist'), [
+    ('logged_in_client_teacher', [200, 302], False),
+    ('logged_in_client_intruder', [403, 302], True),
+    ('logged_in_client_student', [403, 302], True),
+])
+def test_story_delete_permitions(request, published_story, client_fixture, expected_status, should_exist):
+    client = request.getfixturevalue(client_fixture)
 
-    # Send POST request to delete the story
     url = reverse('story_delete', args=[published_story.id])
     response = client.post(url)
 
-    # Check redirect (or success)
-    assert response.status_code in [302, 200]
-
-    # Ensure the story is deleted from DB
-    assert not Story.objects.filter(id=published_story.id).exists()
-
-@pytest.mark.django_db
-def test_other_teacher_cannot_delete_story(logged_in_client_intruder, published_story):
-
-    client = logged_in_client_intruder
-
-    # Attempt to delete the story
-    url = reverse('story_delete', args=[published_story.id])
-    response = client.post(url)
-
-    # Expect forbidden or redirect
-    assert response.status_code in [302, 403]
-
-    # Ensure story still exists
-    assert Story.objects.filter(id=published_story.id).exists()
-
-@pytest.mark.django_db
-def test_student_cannot_delete_story(logged_in_client_student, published_story):
-    client = logged_in_client_student
-
-    # Attempt to delete the story
-    url = reverse('story_delete', args=[published_story.id])
-    response = client.post(url)
-
-    # Expect forbidden or redirect
-    assert response.status_code in [302, 403]
-
-    # Ensure story still exists
-    assert Story.objects.filter(id=published_story.id).exists()
-
+    assert response.status_code in expected_status
+    assert Story.objects.filter(id=published_story.id).exists() == should_exist
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("missing_fields, expected_status, should_exist", [
