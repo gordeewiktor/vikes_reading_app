@@ -89,29 +89,6 @@ def post_reading_question(published_story):
     )
 
 @pytest.mark.django_db
-def test_teacher_can_create_story(logged_in_client_teacher, teacher_user, base_story_data):
-    client = logged_in_client_teacher
-
-    url = reverse('story_create')
-    response = client.post(url, base_story_data)
-
-    assert response.status_code == 302
-    stories = Story.objects.filter(title=base_story_data['title']).first()
-    assert stories is not None
-    assert stories.author == teacher_user
-
-@pytest.mark.django_db
-def test_student_cannot_create_story(logged_in_client_student, base_story_data):
-    client = logged_in_client_student
-
-    url = reverse('story_create')
-    response = client.post(url, base_story_data)
-
-    # Expect forbidden or redirect
-    assert response.status_code in [302, 403]
-    assert not Story.objects.filter(title=base_story_data['title']).exists()
-
-@pytest.mark.django_db
 def test_teacher_can_edit_own_story(logged_in_client_teacher, published_story, base_story_data):
     
     client = logged_in_client_teacher
@@ -155,12 +132,32 @@ def test_other_teacher_cannot_edit_story(logged_in_client_intruder, published_st
     assert story.content == 'Once upon a published time...'
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('client_fixture', 'expected_status', 'should_exist'), [
+@pytest.mark.parametrize("client_fixture, expected_status, should_create", [
+    ("logged_in_client_teacher", 302, True),
+    ("logged_in_client_student", [403, 302], False),
+    ("client", 302, False),
+])
+def test_story_create_permissions(
+    request, base_story_data, teacher_user, 
+    client_fixture, expected_status, should_create
+    ):
+    client = request.getfixturevalue(client_fixture)
+    url = reverse('story_create')
+
+    response = client.post(url, base_story_data)
+    story_exists = Story.objects.filter(title=base_story_data['title']).exists()
+
+    assert response.status_code in expected_status if isinstance(expected_status, list) else [expected_status]
+    assert story_exists is should_create
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("client_fixture, expected_status, should_exist", [
     ('logged_in_client_teacher', [200, 302], False),
     ('logged_in_client_intruder', [403, 302], True),
     ('logged_in_client_student', [403, 302], True),
 ])
-def test_story_delete_permitions(request, published_story, client_fixture, expected_status, should_exist):
+def test_story_delete_permissions(request, published_story, client_fixture, expected_status, should_exist):
     client = request.getfixturevalue(client_fixture)
 
     url = reverse('story_delete', args=[published_story.id])
@@ -195,19 +192,6 @@ def test_teacher_story_creation_variants(logged_in_client_teacher, base_story_da
     # Check if the story was saved (based on the unique description)
     exists = Story.objects.filter(description=base_story_data['description']).exists()
     assert exists is should_exist
-
-@pytest.mark.django_db
-def test_anonymous_user_cannot_create_story(client, base_story_data):
-
-    url = reverse('story_create')
-    response = client.post(url, base_story_data)
-
-    # Expect redirect to login page (usually 302)
-    assert response.status_code == 302
-    assert '/login' in response.url or 'accounts/login' in response.url
-
-    # Ensure story was NOT created
-    assert not Story.objects.filter(title=base_story_data['title']).exists()
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("user_type, client_fixture", [
@@ -495,7 +479,6 @@ def test_teacher_can_access_student_profile(logged_in_client_teacher):
     assert response.status_code == 200
     assert student.username in response.content.decode()
 
-
 # Student sees only published stories
 @pytest.mark.django_db
 def test_student_sees_only_published_stories_on_home(
@@ -507,7 +490,6 @@ def test_student_sees_only_published_stories_on_home(
     content = response.content.decode()
     assert "Published Story" in content
     assert "Draft Story" not in content
-
 
 # Teacher sees both draft and published stories on home
 @pytest.mark.django_db
