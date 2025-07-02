@@ -89,49 +89,6 @@ def post_reading_question(published_story):
     )
 
 @pytest.mark.django_db
-def test_teacher_can_edit_own_story(logged_in_client_teacher, published_story, base_story_data):
-    
-    client = logged_in_client_teacher
-
-    # Create a story authored by this teacher
-    story = published_story
-
-    # Prepare updated story data
-    updated_data = base_story_data
-
-    # Send POST request to the story edit view
-    url = reverse('story_edit', args=[story.id])
-    response = client.post(url, updated_data)
-
-    # Confirm the response is a redirect (successful update)
-    assert response.status_code == 302
-
-    # Refresh the story from the DB and check that fields were updated
-    story.refresh_from_db()
-    assert story.title == 'Valid Title'
-    assert story.description == 'A story that makes sense.'
-    assert story.content == 'This is actual content.'
-
-@pytest.mark.django_db
-def test_other_teacher_cannot_edit_story(logged_in_client_intruder, published_story, base_story_data):
-
-    story = published_story
-
-    # Try to edit the author's story
-    updated_data = base_story_data
-    url = reverse('story_edit', args=[story.id])
-    response = logged_in_client_intruder.post(url, updated_data)
-
-    # Expect forbidden or redirect
-    assert response.status_code in [302, 403]
-
-    # Ensure story content did not change
-    story.refresh_from_db()
-    assert story.title == 'Published Story'
-    assert story.description == 'Visible to students'
-    assert story.content == 'Once upon a published time...'
-
-@pytest.mark.django_db
 @pytest.mark.parametrize("client_fixture, expected_status, should_create", [
     ("logged_in_client_teacher", 302, True),
     ("logged_in_client_student", [403, 302], False),
@@ -149,6 +106,31 @@ def test_story_create_permissions(
     assert response.status_code in expected_status if isinstance(expected_status, list) else [expected_status]
     assert story_exists is should_create
 
+@pytest.mark.django_db
+@pytest.mark.parametrize('client_fixture, expected_status, should_update', [
+    ('logged_in_client_teacher', 200, True),
+    ('logged_in_client_intruder', [403, 302], False),
+])
+def test_story_edit_permissions(request, published_story, base_story_data, 
+                                client_fixture, expected_status, should_update
+                                ):
+    client = request.getfixturevalue(client_fixture)
+    story = published_story
+
+    url = reverse('story_edit', args=[story.id])
+    response = client.post(url, base_story_data)
+
+    assert response.status_code in expected_status if isinstance(expected_status, list) else [expected_status]
+
+    story.refresh_from_db()
+    if should_update:
+        assert story.title == base_story_data['title']
+        assert story.description == base_story_data['description']
+        assert story.content == base_story_data['content']
+    else:
+        assert story.title == "Published Story"
+        assert story.description == "Visible to students"
+        assert story.content == "Once upon a published time..."
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("client_fixture, expected_status, should_exist", [
