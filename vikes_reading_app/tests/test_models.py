@@ -1,5 +1,6 @@
 import pytest
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from vikes_reading_app.models import (
     CustomUser,
     Story,
@@ -23,31 +24,52 @@ def create_story(create_user):
             description=kwargs.get("description", "Default description."),
             content=kwargs.get("content", "Default content."),
             author=kwargs.get("author", create_user(role='teacher')),
-            status=kwargs.get("status", "draft")
+            status=kwargs.get("status", "draft"),
+            narration_audio=kwargs.get("narration_audio"),
         )
     return _create_story
 
-# === CustomUser ===
-def test_create_custom_user(create_user):
-    user = create_user(username="john", role="teacher")
-    assert user.username == "john"
-    assert user.role == "teacher"
+@pytest.fixture
+def audio_file():
+    return SimpleUploadedFile(
+        name="test_audio.mp3",
+        content=b"fake audio content",
+        content_type="audio/mpeg",
+    )
 
-def test_custom_user_str(create_user):
-    user = create_user(username="tester")
-    assert str(user) == "tester (Student)"
+# === CustomUser ===
+@pytest.mark.parametrize('username, role', [
+    ('john', 'teacher'),
+    ('jane', 'student'),
+    ('admin', 'teacher'),
+])
+def test_create_custom_user(create_user, username, role):
+    user = create_user(username=username, role=role)
+    assert user.username == username
+    assert user.role == role
+
+@pytest.mark.parametrize('username, role, expected_str', [
+    ('tester', 'student', 'tester (Student)'),
+    ('mr_smith', 'teacher', 'mr_smith (Teacher)'),
+])
+def test_custom_user_str(create_user, username, role, expected_str):
+    user = create_user(username=username, role=role)
+    assert str(user) == expected_str
 
 
 # === Story ===
-def test_create_story_with_audio(create_story):
+def test_create_story_with_audio(create_story, audio_file):
     story = create_story(
         title="Magic Tale",
         description="Exciting adventure",
         content="Once upon a time...",
-        status="published"
+        status="published",
+        narration_audio = audio_file,
     )
     assert story.title == "Magic Tale"
     assert story.status == "published"
+    assert story.narration_audio.name.startswith('story_audio/test_audio')
+    assert story.narration_audio.name.endswith('.mp3')
 
 def test_story_default_status(create_story):
     story = create_story(
@@ -107,17 +129,20 @@ def test_progress_str(create_user, create_story):
 
 
 # === PreReadingExercise ===
-def test_create_pre_reading_exercise(create_user, create_story):
+def test_create_pre_reading_exercise_with_audio(create_user, create_story, audio_file):
     story = create_story(author=create_user(username="t", role="teacher"))
     question = PreReadingExercise.objects.create(
         story=story,
         question_text="What is the sea?",
         option_1="Water",
         option_2="Sky",
-        is_option_1_correct=True
+        is_option_1_correct=True,
+        audio_file=audio_file
     )
     assert question.story == story
     assert question.is_option_1_correct is True
+    assert question.audio_file.name.startswith('pre_reading_audio/test_audio')
+    assert question.audio_file.name.endswith('.mp3')
 
 
 # === PostReadingQuestion ===
