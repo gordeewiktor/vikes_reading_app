@@ -1,16 +1,158 @@
 import pytest
-from vikes_reading_app.models import Story
-from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from vikes_reading_app.models import (
+    CustomUser,
+    Story,
+    Progress,
+    PreReadingExercise,
+    PostReadingQuestion
+)
 
-User = get_user_model()
+@pytest.fixture
+def create_user(db):
+    def _create_user(username="user", password="pass123", role="student"):
+        return CustomUser.objects.create_user(username=username, password=password, role=role)
+    return _create_user
+pytestmark = pytest.mark.django_db
 
-@pytest.mark.django_db
-def test_create_story():
-    author = User.objects.create_user(username="user", password="pass")
-    story = Story.objects.create(
-        title="Test story",
-        description="A quick test",
-        author=author,
-        content="Once uppon a time...",
+@pytest.fixture
+def create_story(create_user):
+    def _create_story(**kwargs):
+        return Story.objects.create(
+            title=kwargs.get("title", "Default Title"),
+            description=kwargs.get("description", "Default description."),
+            content=kwargs.get("content", "Default content."),
+            author=kwargs.get("author", create_user(role='teacher')),
+            status=kwargs.get("status", "draft")
+        )
+    return _create_story
+
+# === CustomUser ===
+def test_create_custom_user(create_user):
+    user = create_user(username="john", role="teacher")
+    assert user.username == "john"
+    assert user.role == "teacher"
+
+def test_custom_user_str(create_user):
+    user = create_user(username="tester")
+    assert str(user) == "tester (Student)"
+
+
+# === Story ===
+def test_create_story_with_audio(create_story):
+    story = create_story(
+        title="Magic Tale",
+        description="Exciting adventure",
+        content="Once upon a time...",
+        status="published"
     )
-    assert story.title == "Test story"
+    assert story.title == "Magic Tale"
+    assert story.status == "published"
+
+def test_story_default_status(create_story):
+    story = create_story(
+        title="Silent Hill",
+        description="Mysterious",
+        content="..."
+    )
+    assert story.status == "draft"
+
+def test_story_str(create_story):
+    story = create_story(
+        title="My Title",
+        description="Desc",
+        content="Text"
+    )
+    assert str(story) == "My Title"
+
+
+# === Progress ===
+def test_create_progress_entry(create_user, create_story):
+    student = create_user(username="student1", role="student")
+    story = create_story(title="The End", author=create_user(username="teachy", role="teacher"))
+    
+    progress = Progress.objects.create(
+        student=student,
+        read_story=story,
+        score=85.5,
+        current_stage='reading',
+        answers_given={"q1": "a"},
+        post_reading_lookups={},
+    )
+    
+    assert progress.score == 85.5
+    assert progress.current_stage == "reading"
+
+def test_progress_score_validation(create_user, create_story):
+    student = create_user(username="s2", role="student")
+    story = create_story(title="Weird", author=student)
+
+    with pytest.raises(ValidationError):
+        progress = Progress(
+            student=student,
+            read_story=story,
+            score=150.0,  # 🚫 Invalid score (above 100)
+        )
+        progress.full_clean()
+
+def test_progress_str(create_user, create_story):
+    student = create_user(username="Anna", role="student")
+    story = create_story(title="Clouds", author=student)
+    progress = Progress.objects.create(
+        student=student,
+        read_story=story,
+        score=50,
+    )
+    assert str(progress) == "Anna - Clouds - pre_reading"
+
+
+# === PreReadingExercise ===
+def test_create_pre_reading_exercise(create_user, create_story):
+    story = create_story(author=create_user(username="t", role="teacher"))
+    question = PreReadingExercise.objects.create(
+        story=story,
+        question_text="What is the sea?",
+        option_1="Water",
+        option_2="Sky",
+        is_option_1_correct=True
+    )
+    assert question.story == story
+    assert question.is_option_1_correct is True
+
+
+# === PostReadingQuestion ===
+def test_create_post_reading_question(create_user, create_story):
+    story = create_story(
+        title="Moonlight",
+        description="Night story",
+        author=create_user(username="x", role="teacher")
+    )
+    question = PostReadingQuestion.objects.create(
+        story=story,
+        question_text="What happened at night?",
+        option_1="They slept",
+        option_2="They danced",
+        option_3="They flew",
+        option_4="They ate",
+        correct_option=2,
+        explanation="They danced because the moon was bright."
+    )
+    assert question.correct_option == 2
+
+
+def test_post_reading_question_str(create_user, create_story):
+    story = create_story(
+        title="Starlight",
+        description="Peaceful",
+        author=create_user(username="maria", role="teacher")
+    )
+    question = PostReadingQuestion.objects.create(
+        story=story,
+        question_text="What did they see?",
+        option_1="Stars",
+        option_2="Clouds",
+        option_3="Bats",
+        option_4="Nothing",
+        correct_option=1
+    )
+    assert str(question) == "Starlight - What did they see?"
