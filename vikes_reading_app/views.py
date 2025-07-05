@@ -809,7 +809,7 @@ def my_students(request):
     return render(request, 'vikes_reading_app/my_students.html', context)
 
 # View to display detailed profile and progress of a specific student
-@user_passes_test(lambda u: u.is_authenticated and u.role == 'teacher')
+@user_passes_test(is_teacher)
 @login_required
 def profile_detail(request, student_id):
     # Get the student object or 404 if not found or not a student
