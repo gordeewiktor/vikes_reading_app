@@ -83,6 +83,9 @@ class PreReadingExercise(models.Model):
     is_option_1_correct = models.BooleanField(default=False)  # Whether option 1 is correct
     is_option_2_correct = models.BooleanField(default=False)  # Whether option 2 is correct
     audio_file = models.FileField(upload_to='pre_reading_audio/', blank=True, null=True)  # Optional audio for the question
+    
+    def __str__(self):
+        return f"{self.story.title} - {self.question_text}"
 
 # Model holding post-reading questions linked to a story
 class PostReadingQuestion(models.Model):
@@ -101,5 +104,6 @@ class PostReadingQuestion(models.Model):
         ]
     )  # Correct option number
     explanation = models.TextField(blank=True)  # Explanation for the correct answer
+    
     def __str__(self):
         return f"{self.story.title} - {self.question_text}"
