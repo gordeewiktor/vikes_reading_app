@@ -4,8 +4,9 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.http import HttpResponseForbidden
 from vikes_reading_app.forms import StoryForm
 from django.contrib import messages
+from vikes_reading_app.decorators import teacher_required
 
-@login_required()
+@teacher_required
 def my_stories(request):
     """
     Shows a list of stories authored by the currently logged-in user.
@@ -17,7 +18,7 @@ def my_stories(request):
     else:
         return redirect('profile')
     
-@login_required
+@teacher_required
 def story_create(request):
     """
     Allows teachers to create a new story.
@@ -39,7 +40,7 @@ def story_create(request):
         form = StoryForm()
     return render(request, 'vikes_reading_app/story_create.html', {'form': form})
 
-@login_required
+@teacher_required
 def story_edit(request, story_id):
     """
     Allows authors to edit their own stories.
@@ -63,7 +64,7 @@ def story_edit(request, story_id):
         'story': story
     })
 
-@login_required
+@teacher_required
 def story_delete(request, story_id):
     """
     Allows authors to delete their own stories.

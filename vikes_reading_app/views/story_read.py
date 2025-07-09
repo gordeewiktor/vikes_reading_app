@@ -2,18 +2,15 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponseForbidden
 from vikes_reading_app.models import PreReadingExercise, PostReadingQuestion, Story, Progress
+from vikes_reading_app.decorators import teacher_is_author
 
-@login_required
-def story_read_teacher(request, story_id):
+@teacher_is_author
+def story_read_teacher(request, story):
     """
     Teacher view for a story. Shows the story text and associated pre-reading and post-reading questions.
     Only the author can access it.
     """
-    story = get_object_or_404(Story, id=story_id)
-    if request.user.role != 'teacher':
-        return HttpResponseForbidden("Students cannot view this page.")
-    if request.user != story.author:
-        return HttpResponseForbidden("You are not allowed to view this story.")
+    
     pre_reading_exercises = PreReadingExercise.objects.filter(story=story).order_by('id')
     post_reading_questions = PostReadingQuestion.objects.filter(story=story).order_by('id')
     return render(request, 'vikes_reading_app/story_read_teacher.html', {

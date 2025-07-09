@@ -2,8 +2,9 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
 from vikes_reading_app.models import Story, PreReadingExercise, PostReadingQuestion
+from vikes_reading_app.decorators import teacher_required
 
-@login_required
+@teacher_required
 def manage_questions(request, story_id):
     """
     Allows the story author to view and manage (add/edit/delete) pre-reading and post-reading questions for a story.
