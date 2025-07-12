@@ -1,5 +1,4 @@
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, render, redirect
+from django.shortcuts import render, redirect
 from vikes_reading_app.models import PreReadingExercise, PostReadingQuestion, Story, Progress
 from vikes_reading_app.decorators import teacher_is_author, student_can_view_story
 from vikes_reading_app.helpers import (
