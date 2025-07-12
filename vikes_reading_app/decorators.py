@@ -30,3 +30,16 @@ def teacher_is_author(view_func):
 
         return view_func(request, story=story, *args, **kwargs)
     return _wrapped_view
+
+def student_can_view_story(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, story_id, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated:
+            return redirect('login')
+        if user.role != 'student':
+            return HttpResponseForbidden("Access denied: Only students can view this page.")
+
+        story = get_object_or_404(Story, id=story_id)
+        return view_func(request, story=story, *args, **kwargs)
+    return _wrapped_view

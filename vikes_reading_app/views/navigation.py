@@ -65,6 +65,3 @@ def return_to_question(request, story_id, question_index):
     Redirects user back to the post-reading question after a lookup.
     """
     return redirect("post_reading_read", story_id=story_id, question_index=question_index)
-
-def is_teacher(user):
-    return user.is_authenticated and user.role == 'teacher'

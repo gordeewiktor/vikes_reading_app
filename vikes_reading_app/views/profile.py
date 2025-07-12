@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.shortcuts import redirect, render, get_object_or_404
 from vikes_reading_app.models import Progress, CustomUser
-from vikes_reading_app.views.helpers import is_teacher
+from vikes_reading_app.helpers import is_teacher
 
 @login_required
 def profile(request):
