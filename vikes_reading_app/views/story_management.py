@@ -1,6 +1,5 @@
 from vikes_reading_app.models import Story, PostReadingQuestion, PreReadingExercise
-from django.shortcuts import redirect, render, get_object_or_404
-from django.http import HttpResponseForbidden
+from django.shortcuts import redirect, render
 from vikes_reading_app.forms import StoryForm
 from django.contrib import messages
 from vikes_reading_app.decorators import teacher_required, teacher_is_author
