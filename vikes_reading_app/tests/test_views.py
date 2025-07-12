@@ -5,7 +5,7 @@ import pytest
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 
-from vikes_reading_app.models import Story, PreReadingExercise, PostReadingQuestion
+from vikes_reading_app.models import Story, PreReadingExercise, PostReadingQuestion, Progress
 
 User = get_user_model()
 
@@ -205,7 +205,6 @@ def test_teacher_story_creation_variants(logged_in_client_teacher, base_story_da
     ("story_read_teacher", True),
     ("manage_questions", True),
     ("my_stories", False),
-    ("my_students", False),
 ])
 def test_unauthorized_users_cannot_access_teacher_views_combo(
     request, user_type, client_fixture, url_name, use_story_id, published_story
@@ -302,6 +301,26 @@ def test_story_read_student_access(request, published_story, client_fixture, exp
     assert response.status_code in expected
     if response.status_code == 200:
         assert b'Once upon a published time...' in response.content
+
+# ✅ Teacher sees students and their read stories on profile page
+@pytest.mark.django_db
+def test_teacher_profile_shows_students_with_stories(logged_in_client_teacher, published_story):
+    student = User.objects.create_user(username='student1', password='pass123', role='student')
+    
+    Progress.objects.create(
+        student=student,
+        read_story=published_story,
+        score=0.0,
+        current_stage="reading"
+    )
+    
+    url = reverse('profile')
+    response = logged_in_client_teacher.get(url)
+    
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert 'student1' in content
+    assert 'Published Story' in content
 
 # ========================
 # 🧠 Student Pre-Reading Flow

@@ -33,20 +33,16 @@
         </fieldset>
     </form>
     {# Student Progress Section - Shown only for teachers, lists all students and their story progress #}
-    {% if students_progress %}
-        <h2>Student Progress</h2>
-        {% for student, progresses in students_progress.items %}
-            <h3>{{ student.username }}</h3>
+    {% if students_with_stories %}
+        <h2>Your Students</h2>
+        {% for entry in students_with_stories %}
+            <h3>{{ entry.student.username }}</h3>
             <ul>
-                {% for progress in progresses %}
-                    <li>
-                        <strong>Story:</strong> {{ progress.story.title }}<br>
-                        <strong>Pre-Reading:</strong> {{ progress.pre_reading_score }} correct, {{ progress.pre_reading_time }} seconds<br>
-                        <strong>Reading:</strong> {{ progress.reading_time }} seconds<br>
-                        <strong>Post-Reading:</strong> {{ progress.post_reading_score }} correct, {{ progress.post_reading_time }} seconds
-                    </li>
+                {% for title in entry.story_titles %}
+                    <li>{{ title }}</li>
                 {% endfor %}
             </ul>
+            <a href="{% url 'profile_detail' entry.student.id %}">View Details</a>
             <hr>
         {% endfor %}
     {% endif %}

@@ -4,6 +4,25 @@ from django.shortcuts import redirect, render, get_object_or_404
 from vikes_reading_app.models import Progress, CustomUser
 from vikes_reading_app.helpers import is_teacher
 
+def get_students_with_stories():
+    students = CustomUser.objects.filter(role='student')
+    student_data = []
+
+    for student in students:
+        story_titles = (
+            Progress.objects
+            .filter(student=student)
+            .select_related('read_story')
+            .values_list('read_story__title', flat=True)
+            .distinct()
+        )
+        student_data.append({
+            "student": student,
+            "story_titles": list(story_titles),
+        })
+
+    return student_data
+
 @login_required
 def profile(request):
     """
@@ -22,26 +41,10 @@ def profile(request):
 
     # If teacher, aggregate all students' progress for display
     if request.user.role == 'teacher':
-        progress_list = Progress.objects.select_related('student', 'read_story')
-        students_progress = {}
-        for progress in progress_list:
-            student = progress.student
-            story = progress.read_story
-            if student not in students_progress:
-                students_progress[student] = []
-            students_progress[student].append({
-                "story": story,
-                "pre_reading_time": progress.pre_reading_time,
-                # Pre-reading score logic: count of pre-reading answers (if present)
-                "pre_reading_score": len(progress.answers_given.get("pre_reading", {})) if progress.answers_given else 0,
-                "reading_time": progress.reading_time,
-                # Post-reading score: count of correct answers (True)
-                "post_reading_score": sum(1 for value in progress.answers_given.values() if value) if progress.answers_given else 0,
-                "post_reading_time": progress.post_reading_time
-            })
+        students_with_stories = get_students_with_stories()
         return render(request, 'vikes_reading_app/profile.html', {
             'user': request.user,
-            'students_progress': students_progress
+            'students_with_stories': students_with_stories
         })
 
     # Default for student users: show only their own profile
@@ -66,22 +69,3 @@ def profile_detail(request, student_id):
         'progress_records': progress_records,  # Renamed for template consistency
     }
     return render(request, 'vikes_reading_app/profile_detail.html', context)
-
-# View accessible only to teachers, showing all students and whether they have any progress
-@user_passes_test(is_teacher)
-def my_students(request):
-    # Get all users who are students
-    students = CustomUser.objects.filter(role='student')
-
-    # Create a list of tuples (student, has_progress)
-    # has_progress is True if any Progress record exists for that student
-    student_status = [
-        (student, Progress.objects.filter(student=student).exists())
-        for student in students
-    ]
-
-    # Pass the list to the template
-    context = {
-        'student_status': student_status
-    }
-    return render(request, 'vikes_reading_app/my_students.html', context)

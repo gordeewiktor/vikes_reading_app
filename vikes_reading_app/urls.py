@@ -3,7 +3,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from vikes_reading_app.views.home import home
 from vikes_reading_app.views.auth import logout_confirm, register_view
 from vikes_reading_app.views.story_management import my_stories, story_create, story_edit, story_delete
-from vikes_reading_app.views.profile import profile, profile_detail, my_students
+from vikes_reading_app.views.profile import profile, profile_detail
 from vikes_reading_app.views.story_read import story_read_teacher, story_read_student, story_entry_point
 from vikes_reading_app.views.questions import manage_questions
 from vikes_reading_app.views.post_reading import post_reading_create, post_reading_edit, post_reading_delete, post_reading_read, post_reading_submit, post_reading_summary
@@ -20,7 +20,6 @@ urlpatterns = [
     path('logout/', logout_confirm, name='logout_confirm'),
     path('register/', register_view, name='register'),
     path('my-stories/', my_stories, name='my_stories'),
-    path('my-students/', my_students, name='my_students'),
     path('create-story/', story_create, name='story_create'),
     path('read-story/<int:story_id>/', story_read_teacher, name='story_read_teacher'),
     path('profile/', profile, name='profile'),

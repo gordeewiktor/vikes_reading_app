@@ -24,7 +24,7 @@ Student Profile - Vike's Reading
                     <td>{{ record.story.title }}</td>
                     <td>
                         {% if record.pre_reading_time %}
-                            {{ record.score }}%<br>
+                            {{ record.pre_reading_score }} correct<br>
                             {{ record.pre_reading_time }}s
                         {% else %}
                             —
@@ -39,6 +39,7 @@ Student Profile - Vike's Reading
                     </td>
                     <td>
                         {% if record.post_reading_time %}
+                            {{ record.post_reading_score }} correct<br>
                             {{ record.post_reading_time }}s
                         {% else %}
                             —
