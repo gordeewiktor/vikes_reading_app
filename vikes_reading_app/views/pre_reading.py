@@ -5,15 +5,14 @@ from vikes_reading_app.forms import PreReadingExerciseForm
 from vikes_reading_app.models import Story, PreReadingExercise
 from django.contrib import messages
 from django.urls import reverse
+from vikes_reading_app.decorators import teacher_is_author, student_can_view_story, teacher_required
 
-@login_required
+@teacher_required
 def pre_reading_create(request, story_id):
     """
     Allows the story author to add a new pre-reading exercise to a story.
     """
     story = get_object_or_404(Story, id=story_id)
-    if request.user.role != 'teacher':
-        return HttpResponseForbidden("Students cannot view this page.")
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES)
         if form.is_valid():
@@ -25,15 +24,12 @@ def pre_reading_create(request, story_id):
         form = PreReadingExerciseForm()
     return render(request, 'vikes_reading_app/pre_reading_create.html', {'form':  form, 'story': story})
 
-@login_required
-def pre_reading_edit(request, exercise_id):
+@teacher_is_author
+def pre_reading_edit(request, exercise_id, story):
     """
     Allows the story author to edit an existing pre-reading exercise.
     """
     exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
-    story = exercise.story
-    if request.user.role != 'teacher':
-        return HttpResponseForbidden("Students cannot view this page.")
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES, instance=exercise)
         if form.is_valid():
@@ -47,35 +43,32 @@ def pre_reading_edit(request, exercise_id):
         'story': story,
         })
 
-@login_required
+@teacher_is_author
 def pre_reading_delete(request, exercise_id):
     """
     Allows the story author to delete a pre-reading exercise.
     """
     exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
-    if request.user.role != 'teacher':
-        return HttpResponseForbidden("Students cannot view this page.")
     if request.method == "POST":
         exercise.delete()
         messages.success(request, "Exercise deleted successfully!")
         return redirect('manage_questions', story_id=exercise.story.id)
     return render(request, 'vikes_reading_app/pre_reading_delete.html', {'exercise': exercise})
 
-@login_required
-def pre_reading_summary(request, story_id):
+@student_can_view_story
+def pre_reading_summary(request, story):
     """
     Shows a summary of pre-reading exercise results for the student.
     Calculates the number of correct answers using session data.
     """
-    story = get_object_or_404(Story, id=story_id)
     exercises = PreReadingExercise.objects.filter(story=story)
     # Retrieve completed question IDs from session
-    session_key = f'pre_reading_progress_{story_id}'
+    session_key = f'pre_reading_progress_{story.id}'
     completed_ids = request.session.get(session_key, [])
 
     #check whether all questions were completed
     if len(completed_ids) < exercises.count():
-        return redirect('pre_reading_read', story_id=story_id)
+        return redirect('pre_reading_read', story_id=story.id)
     
     correct_count = 0
     question_data = []
@@ -97,20 +90,19 @@ def pre_reading_summary(request, story_id):
     }
     return render(request, 'vikes_reading_app/pre_reading_summary.html', context)
 
-@login_required
-def pre_reading_read(request, story_id):
+@student_can_view_story
+def pre_reading_read(request, story):
     """
     Display pre-reading exercises to students, one at a time.
     Uses session to track which questions have been completed.
     Redirects to summary when all are done.
     """
-    story = get_object_or_404(Story, id=story_id)
     pre_reading_exercises = list(PreReadingExercise.objects.filter(story=story))
     if not pre_reading_exercises:
         messages.info(request, "No pre-reading exercises available for this story.")
         return redirect('read_story', story_id=story.id)
     # Get current progress from session
-    session_key = f'pre_reading_progress_{story_id}'
+    session_key = f'pre_reading_progress_{story.id}'
     completed_questions = request.session.get(session_key, [])
     # Find the next unanswered question
     next_question = next(
@@ -128,25 +120,29 @@ def pre_reading_read(request, story_id):
 
 from django.http import JsonResponse
 
-@login_required
-def pre_reading_submit(request, story_id):
+@student_can_view_story
+def pre_reading_submit(request, story):
     """
     Handles student submission of a pre-reading answer.
     Saves answer and progress in session, then returns JSON with correctness and next URL.
     """
-    story = get_object_or_404(Story, id=story_id)
     pre_reading_exercises = list(PreReadingExercise.objects.filter(story=story))
     if request.method == "POST":
-        exercise_id = int(request.POST.get("exercise_id"))
+        try:
+            exercise_id = int(request.POST.get("exercise_id"))
+        except (TypeError, ValueError):
+            return HttpResponseForbidden("Invalid exercise ID.")
         selected_answer = request.POST.get("selected_answer")
         exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
+        if exercise.story != story:
+            return HttpResponseForbidden("Exercise does not belong to this story.")
         # Determine correctness
         is_correct = (
             (selected_answer == exercise.option_1 and exercise.is_option_1_correct) or
             (selected_answer == exercise.option_2 and exercise.is_option_2_correct)
         )
         # Save progress in session (list of completed question IDs and answer per question)
-        session_key = f'pre_reading_progress_{story_id}'
+        session_key = f'pre_reading_progress_{story.id}'
         completed_questions = request.session.get(session_key, [])
         completed_questions.append(exercise.id)
         request.session[session_key] = completed_questions
@@ -157,11 +153,11 @@ def pre_reading_submit(request, story_id):
             None
         )
         next_url = (
-            reverse('pre_reading_read', args=[story_id])
-            if next_question else reverse('pre_reading_summary', args=[story_id])
+            reverse('pre_reading_read', args=[story.id])
+            if next_question else reverse('pre_reading_summary', args=[story.id])
         )
         return JsonResponse({
             "correct": is_correct,
             "next_url": next_url
         })
-    return redirect('pre_reading_read', story_id=story_id)
+    return redirect('pre_reading_read', story_id=story.id)
