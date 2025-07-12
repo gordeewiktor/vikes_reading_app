@@ -5,86 +5,39 @@ from django.shortcuts import get_object_or_404, redirect
 from vikes_reading_app.models import Progress, Story
 from django.http import JsonResponse
 
+def _save_time(request, story_id, time_field, next_stage):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
+    try:
+        data = json.loads(request.body)
+        time_spent = data.get("time_spent", 0)
+        story = get_object_or_404(Story, id=story_id)
+        progress, _ = Progress.objects.update_or_create(
+            student=request.user,
+            read_story=story,
+            defaults={
+                time_field: time_spent,
+                'current_stage': next_stage,
+            }
+        )
+        return JsonResponse({"status": "success", "time_spent": time_spent})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    
 @csrf_exempt
 @login_required
 def save_reading_time(request, story_id):
-    """
-    API endpoint to save the time spent reading a story.
-    Updates or creates Progress record for the user/story.
-    """
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            time_spent = data.get("time_spent", 0)
-            # Save or update the progress
-            story = get_object_or_404(Story, id=story_id)
-            progress, _ = Progress.objects.update_or_create(
-                student=request.user,
-                read_story=story,
-                defaults={
-                    'reading_time': time_spent,
-                    'score': 0.0,
-                    'current_stage': 'reading'
-                }
-            )
-            return JsonResponse({"status": "success", "time_spent": time_spent})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
+    return _save_time(request, story_id, 'reading_time', 'reading')
 
 @csrf_exempt
 @login_required
 def save_pre_reading_time(request, story_id):
-    """
-    API endpoint to save time spent in pre-reading exercises.
-    Updates or creates Progress record for the user/story.
-    """
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            time_spent = data.get("time_spent", 0)
-            # Save or update the progress
-            story = get_object_or_404(Story, id=story_id)
-            progress, _ = Progress.objects.update_or_create(
-                student=request.user,
-                read_story=story,
-                defaults={
-                    'pre_reading_time': time_spent,
-                    'current_stage': 'reading'
-                }
-            )
-            print(f"Pre-reading time saved: {time_spent} seconds")
-            return JsonResponse({"status": "success", "time_spent": time_spent})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
+    return _save_time(request, story_id, 'pre_reading_time', 'reading')
 
 @csrf_exempt
 @login_required
 def save_post_reading_time(request, story_id):
-    """
-    API endpoint to save time spent in post-reading questions.
-    Updates or creates Progress record for the user/story.
-    """
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            time_spent = data.get("time_spent", 0)
-            # Save or update the progress
-            story = get_object_or_404(Story, id=story_id)
-            progress, _ = Progress.objects.update_or_create(
-                student=request.user,
-                read_story=story,
-                defaults={
-                    'post_reading_time': time_spent,
-                    'current_stage': 'completed'
-                }
-            )
-            print(f"Post-reading time saved: {time_spent} seconds")
-            return JsonResponse({"status": "success", "time_spent": time_spent})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
+    return _save_time(request, story_id, 'post_reading_time', 'completed')
 
 @login_required
 def reset_progress(request, story_id):
