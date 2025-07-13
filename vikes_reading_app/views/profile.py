@@ -1,14 +1,25 @@
+# --- Profile Views (Student + Teacher) ---
+
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.shortcuts import redirect, render, get_object_or_404
+
 from vikes_reading_app.models import Progress, CustomUser
 from vikes_reading_app.helpers import is_teacher
 
+
 def get_students_with_stories():
+    """
+    Returns a list of dictionaries containing each student and the titles of stories they've read.
+    This is used by teachers to view student progress.
+    """
+    # Fetch all users who are students
     students = CustomUser.objects.filter(role='student')
+    # Prepare a list to collect each student's data
     student_data = []
 
     for student in students:
+        # Get titles of all distinct stories read by this student
         story_titles = (
             Progress.objects
             .filter(student=student)
@@ -21,25 +32,28 @@ def get_students_with_stories():
             "story_titles": list(story_titles),
         })
 
+    # Return the collected student progress data
     return student_data
+
 
 @login_required
 def profile(request):
     """
-    Allow users to view and edit their own profile.
-    - If POST: Update profile details (currently only bio).
-    - If teacher: Show progress of all students.
-    - If student: Show own profile.
+    Displays the profile page for the logged-in user.
+    - If POST: Update the user's bio.
+    - If teacher: Show a list of students and their progress.
+    - If student: Show only their own profile.
     """
+    # --- Handle Profile Update (POST Request) ---
     if request.method == 'POST':
         bio = request.POST.get('bio', '')
-        user = request.user  # The logged-in user
+        user = request.user
         user.bio = bio
         user.save()
         messages.success(request, "Profile updated successfully!")
         return redirect('profile')
 
-    # If teacher, aggregate all students' progress for display
+    # --- Teacher View: Show all students and their progress ---
     if request.user.role == 'teacher':
         students_with_stories = get_students_with_stories()
         return render(request, 'vikes_reading_app/profile.html', {
@@ -47,25 +61,31 @@ def profile(request):
             'students_with_stories': students_with_stories
         })
 
-    # Default for student users: show only their own profile
+    # --- Student View: Show only own profile ---
     return render(request, 'vikes_reading_app/profile.html', {'user': request.user})
 
-# View to display detailed profile and progress of a specific student
+
 @user_passes_test(is_teacher)
 @login_required
 def profile_detail(request, student_id):
-    # Get the student object or 404 if not found or not a student
+    """
+    View for teachers to inspect detailed progress of a specific student.
+    Shows all story progress only for stories authored by the current teacher.
+    """
+    # Fetch the targeted student object; ensure they are indeed a student
     student = get_object_or_404(CustomUser, id=student_id, role='student')
 
-    # Fetch all progress objects for this student on stories created by the current teacher
+    # Fetch all stories authored by the current teacher
     teacher_stories = request.user.story_set.all()
+    # Fetch progress only for stories authored by this teacher
     progress_records = Progress.objects.filter(
         student=student,
         read_story__in=teacher_stories
     ).select_related('read_story')
 
+    # Prepare context for rendering detailed progress page
     context = {
         'student': student,
-        'progress_records': progress_records,  # Renamed for template consistency
+        'progress_records': progress_records,
     }
     return render(request, 'vikes_reading_app/profile_detail.html', context)

@@ -1,19 +1,30 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import login
+# --- Auth Views ---
+
+# --- Django Imports ---
 from django.contrib import messages
+from django.contrib.auth import login
+from django.shortcuts import render, redirect
+
+# --- App Imports ---
 from vikes_reading_app.forms import CustomUserCreationForm
+
+
+# --- Logout Confirmation ---
 
 def logout_confirm(request):
     """
-    Displays a confirmation page before logging out.
+    Display a confirmation page before logging the user out.
     """
     return render(request, 'vikes_reading_app/auth/logout_confirm.html')
 
+
+# --- User Registration ---
+
 def register_view(request):
     """
-    Handles user registration.
-    GET: Shows the registration form.
-    POST: Creates a student user, logs them in, and redirects home.
+    Handle user registration.
+    - GET: Display the registration form.
+    - POST: Create a student user, log them in, and redirect to home.
     """
     form = CustomUserCreationForm(request.POST or None)
 

@@ -1,18 +1,23 @@
-from vikes_reading_app.models import Story, PostReadingQuestion, PreReadingExercise
-from django.shortcuts import redirect, render
-from vikes_reading_app.forms import StoryForm
+# --- Imports ---
 from django.contrib import messages
+from django.shortcuts import redirect, render
 from vikes_reading_app.decorators import teacher_required, teacher_is_author
+from vikes_reading_app.forms import StoryForm
+from vikes_reading_app.models import Story, PostReadingQuestion, PreReadingExercise
+
+
+# --- Views for Teacher Story Management ---
 
 @teacher_required
 def my_stories(request):
     """
     Shows a list of stories authored by the currently logged-in user.
     """
+    # Filter stories so each teacher sees only their own authored stories
     stories = Story.objects.filter(author=request.user)
     return render(request, 'vikes_reading_app/my_stories.html', {'stories': stories})
-    
-    
+
+
 @teacher_required
 def story_create(request):
     """
@@ -29,8 +34,11 @@ def story_create(request):
             story.save()
             return redirect('my_stories')
     else:
+        # On GET, display an empty story creation form
         form = StoryForm()
+
     return render(request, 'vikes_reading_app/story_create.html', {'form': form})
+
 
 @teacher_is_author
 def story_edit(request, story):
@@ -47,11 +55,14 @@ def story_edit(request, story):
             messages.success(request, "Your story has been updated!")
             return redirect('my_stories')
     else:
+        # On GET, pre-fill the form with the existing story data
         form = StoryForm(instance=story)
+
     return render(request, 'vikes_reading_app/story_edit.html', {
         'form': form,
-        'story': story
+        'story': story,
     })
+
 
 @teacher_is_author
 def story_delete(request, story):
@@ -60,9 +71,11 @@ def story_delete(request, story):
     On POST, deletes the story and all related exercises/questions.
     """
     if request.method == 'POST':
+        # Delete related exercises and questions before deleting the story itself to maintain data integrity
         PreReadingExercise.objects.filter(story=story).delete()
         PostReadingQuestion.objects.filter(story=story).delete()
         story.delete()
         messages.success(request, "Your story and related content have been deleted successfully!")
         return redirect('my_stories')
+
     return render(request, 'vikes_reading_app/story_delete.html', {'story': story})
