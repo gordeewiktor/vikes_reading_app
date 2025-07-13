@@ -1,4 +1,4 @@
-# --- Imports ---
+# --- Imports for Django views, models, forms, and decorators ---
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from vikes_reading_app.decorators import teacher_required, teacher_is_author
@@ -7,8 +7,10 @@ from vikes_reading_app.models import Story, PostReadingQuestion, PreReadingExerc
 
 
 # --- Views for Teacher Story Management ---
+# These views allow teachers to create, edit, and delete their own stories,
+# and ensure only authenticated teachers have access.
 
-@teacher_required
+@teacher_required  # Ensures only logged-in teachers can access this view
 def my_stories(request):
     """
     Shows a list of stories authored by the currently logged-in user.
@@ -18,7 +20,7 @@ def my_stories(request):
     return render(request, 'vikes_reading_app/my_stories.html', {'stories': stories})
 
 
-@teacher_required
+@teacher_required  # Ensures only logged-in teachers can create stories
 def story_create(request):
     """
     Allows teachers to create a new story.
@@ -40,7 +42,7 @@ def story_create(request):
     return render(request, 'vikes_reading_app/story_create.html', {'form': form})
 
 
-@teacher_is_author
+@teacher_is_author  # Ensures only the story's author can edit the story
 def story_edit(request, story):
     """
     Allows authors to edit their own stories.
@@ -64,7 +66,7 @@ def story_edit(request, story):
     })
 
 
-@teacher_is_author
+@teacher_is_author  # Ensures only the story's author can delete the story
 def story_delete(request, story):
     """
     Allows authors to delete their own stories.

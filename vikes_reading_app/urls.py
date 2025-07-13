@@ -1,5 +1,8 @@
+# --- Django Core Imports ---
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
+
+# --- App View Imports ---
 from vikes_reading_app.views.home import home
 from vikes_reading_app.views.auth import logout_confirm, register_view
 from vikes_reading_app.views.story_management import my_stories, story_create, story_edit, story_delete
@@ -10,9 +13,12 @@ from vikes_reading_app.views.post_reading import post_reading_create, post_readi
 from vikes_reading_app.views.pre_reading import pre_reading_create, pre_reading_edit, pre_reading_delete, pre_reading_read, pre_reading_submit, pre_reading_summary
 from vikes_reading_app.views.navigation import story_lookup, start_lookup, return_to_question
 from vikes_reading_app.views.progress import reset_progress, save_post_reading_time, save_pre_reading_time, save_reading_time
+
+# --- Static & Media File Settings ---
 from django.conf import settings
 from django.conf.urls.static import static
 
+# --- URL Patterns ---
 urlpatterns = [
     path('', home, name='home'),
     path('login/', LoginView.as_view(template_name='vikes_reading_app/auth/login.html', next_page='/profile/'), name='login'),
@@ -50,6 +56,7 @@ urlpatterns = [
     path("return-to-question/<int:story_id>/<int:question_index>/", return_to_question, name="return_to_question"),
 ]
 
+# --- Development Static Files ---
 # Serve media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -8,6 +8,7 @@ from vikes_reading_app.models import Progress, CustomUser
 from vikes_reading_app.helpers import is_teacher
 
 
+ # --- Helper Function for Teacher View ---
 def get_students_with_stories():
     """
     Returns a list of dictionaries containing each student and the titles of stories they've read.
@@ -36,6 +37,7 @@ def get_students_with_stories():
     return student_data
 
 
+ # --- Profile View (Handles Both Roles) ---
 @login_required
 def profile(request):
     """
@@ -65,6 +67,7 @@ def profile(request):
     return render(request, 'vikes_reading_app/profile.html', {'user': request.user})
 
 
+ # --- Detailed Profile View for Teacher ---
 @user_passes_test(is_teacher)
 @login_required
 def profile_detail(request, student_id):

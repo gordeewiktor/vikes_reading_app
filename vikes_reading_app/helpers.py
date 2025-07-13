@@ -1,14 +1,22 @@
 from .models import PreReadingExercise, PostReadingQuestion
 
-# Function to check if the user is a teacher
-# This will be used as a decorator to restrict access to views
-# Only authenticated users with the role 'teacher' will pass this test
+# --- User Role Helpers ---
+
+# ✅ Check if user is a teacher (for decorators, permissions)
 def is_teacher(user):
     return user.is_authenticated and user.role == 'teacher'
 
+
+# --- Session Progress Helpers ---
+
+# ✅ Retrieve session-based pre-reading progress for a specific story
 def get_session_progress(request, story_id):
     return request.session.get(f'pre_reading_progress_{story_id}', [])
 
+
+# --- Student Redirection Logic ---
+
+# ✅ Determine if a student should be redirected based on progress
 def should_redirect_student(progress, session_progress, story):
     if not progress and not session_progress:
         return 'pre_reading_read'
@@ -20,6 +28,10 @@ def should_redirect_student(progress, session_progress, story):
 
     return None  # Continue to render the entry point
 
+
+# --- Scoring Utilities ---
+
+# ✅ Calculate student's correct answers in pre-reading (from session)
 def get_pre_reading_score(request, story):
     exercises = PreReadingExercise.objects.filter(story=story)
     total = exercises.count()
@@ -34,6 +46,8 @@ def get_pre_reading_score(request, story):
 
     return correct, total
 
+
+# ✅ Calculate student's post-reading score from Progress model
 def get_post_reading_score(progress):
     if not progress or not progress.answers_given:
         return 0, 0

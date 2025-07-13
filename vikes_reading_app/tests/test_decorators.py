@@ -1,16 +1,20 @@
+# --- Imports ---
 import pytest
 from django.test import RequestFactory
 from django.contrib.auth.models import AnonymousUser
 from vikes_reading_app.decorators import teacher_required
 from django.http import HttpResponse
 
+# --- Fixtures ---
 @pytest.fixture
 def factory():
     return RequestFactory()
 
+# --- Dummy View for Testing ---
 def dummy_view(request):
     return HttpResponse("OK")
 
+# --- Tests for teacher_required Decorator ---
 def test_teacher_required_allows_teacher(factory, teacher_user):
     request = factory.get('/')
     request.user = teacher_user

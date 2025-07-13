@@ -1,13 +1,21 @@
-from django.contrib.auth.forms import UserCreationForm
-from .models import CustomUser
-from django import forms
-from .models import Story, PreReadingExercise, PostReadingQuestion
+# --- Django Imports ---
+from django.contrib.auth.forms import UserCreationForm  # Form for creating new users
+from django import forms  # Django forms framework
+
+# --- App Imports ---
+from .models import CustomUser, Story, PreReadingExercise, PostReadingQuestion  # Import custom models
+
+
+# --- User Registration Form ---
 
 # Form for user registration using the custom user model
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = CustomUser  # Use your custom user model
         fields = ['username', 'password1', 'password2']  # Fields to include in the form
+
+
+# --- Story Form ---
 
 # Form used by teachers to create or edit stories
 class StoryForm(forms.ModelForm):
@@ -17,7 +25,11 @@ class StoryForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Content is optional; teacher may skip it on creation
         self.fields['content'].required = False
+
+
+# --- Pre-Reading Exercise Form ---
 
 # Form for creating and editing pre-reading exercises with validation logic
 class PreReadingExerciseForm(forms.ModelForm):
@@ -38,6 +50,9 @@ class PreReadingExerciseForm(forms.ModelForm):
             raise forms.ValidationError("You must select one correct answer")
         
         return cleaned_data
+
+
+# --- Post-Reading Question Form ---
 
 # Form for creating and editing post-reading questions
 class PostReadingQuestionForm(forms.ModelForm):

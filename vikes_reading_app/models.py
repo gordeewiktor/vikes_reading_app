@@ -1,13 +1,19 @@
+# --- Imports ---
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
-# Role Choices
+# --- Role Choices ---
+
 ROLE_CHOICES = [
     ('teacher', 'Teacher'),
     ('student', 'Student'),
 ]
+
+
+# --- Models ---
 
 # Custom User Model with roles to distinguish between teachers and students
 class CustomUser(AbstractUser):
@@ -20,7 +26,8 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
-    
+
+
 # Model representing a story that can be read by students
 class Story(models.Model):
     STATUS_CHOICES = [
@@ -46,6 +53,7 @@ class Story(models.Model):
         indexes = [
             models.Index(fields=['author']),
         ]
+
 
 # Model tracking the progress of a student reading a story
 class Progress(models.Model):
@@ -73,9 +81,9 @@ class Progress(models.Model):
     def __str__(self):
         return f"{self.student.username} - {self.read_story.title} - {self.current_stage}"
 
+
 # Model holding pre-reading exercises linked to a story
 class PreReadingExercise(models.Model):
-    
     story = models.ForeignKey('Story', on_delete=models.CASCADE, related_name='pre_reading_exercises')  # Associated story
     question_text = models.CharField(max_length=500)  # Text of the pre-reading question
     option_1 = models.CharField(max_length=100)  # First answer option
@@ -83,9 +91,10 @@ class PreReadingExercise(models.Model):
     is_option_1_correct = models.BooleanField(default=False)  # Whether option 1 is correct
     is_option_2_correct = models.BooleanField(default=False)  # Whether option 2 is correct
     audio_file = models.FileField(upload_to='pre_reading_audio/', blank=True, null=True)  # Optional audio for the question
-    
+
     def __str__(self):
         return f"{self.story.title} - {self.question_text}"
+
 
 # Model holding post-reading questions linked to a story
 class PostReadingQuestion(models.Model):
@@ -104,6 +113,6 @@ class PostReadingQuestion(models.Model):
         ]
     )  # Correct option number
     explanation = models.TextField(blank=True)  # Explanation for the correct answer
-    
+
     def __str__(self):
         return f"{self.story.title} - {self.question_text}"
