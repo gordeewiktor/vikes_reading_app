@@ -25,3 +25,42 @@ class ORMProgressRepository(ProgressRepository):
             pre_reading_time=progress_model.pre_reading_time,
             post_reading_time=progress_model.post_reading_time,
         )
+
+    def get_progress_model(self, student, story):
+        return Progress.objects.filter(student=student, read_story=story).first()
+
+    def get_or_create_progress(self, student, story):
+        return Progress.objects.get_or_create(student=student, read_story=story)
+
+    def save_progress(self, progress):
+        progress.save()
+        return progress
+
+    def save_time(self, student, story, time_field: str, current_stage: str, time_spent: int):
+        progress, _ = Progress.objects.update_or_create(
+            student=student,
+            read_story=story,
+            defaults={
+                time_field: time_spent,
+                'current_stage': current_stage,
+            }
+        )
+        return progress
+
+    def delete_progress(self, student, story) -> None:
+        Progress.objects.filter(student=student, read_story=story).delete()
+
+    def list_story_titles_for_student(self, student) -> list:
+        return list(
+            Progress.objects
+            .filter(student=student)
+            .select_related('read_story')
+            .values_list('read_story__title', flat=True)
+            .distinct()
+        )
+
+    def list_progress_records(self, student, stories) -> list:
+        return Progress.objects.filter(
+            student=student,
+            read_story__in=stories
+        ).select_related('read_story')

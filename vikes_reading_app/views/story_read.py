@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from vikes_reading_app.decorators import student_can_view_story, teacher_is_author
-from vikes_reading_app.models import PostReadingQuestion, PreReadingExercise
+from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
 from vikes_reading_app.services.reading_flow import ReadingFlowService
 
@@ -15,8 +15,9 @@ def story_read_teacher(request, story):
     Displays the story text along with all related pre-reading and post-reading questions.
     Only the author of the story (teacher) can access this view.
     """
-    pre_reading_exercises = PreReadingExercise.objects.filter(story=story).order_by('id')
-    post_reading_questions = PostReadingQuestion.objects.filter(story=story).order_by('id')
+    repo = ORMStoryRepository()
+    pre_reading_exercises = repo.list_pre_reading_exercises(story)
+    post_reading_questions = repo.list_post_reading_questions(story)
     return render(request, 'vikes_reading_app/story_read_teacher.html', {
         'story': story,
         'pre_reading_exercises': pre_reading_exercises,

@@ -1,11 +1,12 @@
 # --- Imports ---
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, render, redirect
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
 
 from vikes_reading_app.decorators import student_can_view_story
-from vikes_reading_app.models import PostReadingQuestion, Progress, Story
+from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
+from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 
 # --- Constants ---
 LOOKUP_TIME_LIMITS = {1: 30, 2: 45, 3: 60}
@@ -18,6 +19,7 @@ def story_lookup(request, story):
     Tracks and limits lookup count per question in session.
     After max lookups, redirects back to the question.
     """
+    story_repo = ORMStoryRepository()
     # Parse and validate question_id from query parameters
     try:
         question_id = int(request.GET.get('question_id'))
@@ -28,7 +30,7 @@ def story_lookup(request, story):
     lookup_key = f'lookup_story_{story.id}_q{question_id}'
     lookup_count = request.session.get(lookup_key, 0)
     # Determine index of the current question for return logic
-    questions = list(PostReadingQuestion.objects.filter(story=story).order_by('id'))
+    questions = story_repo.list_post_reading_questions(story)
     question_index = next((index for index, q in enumerate(questions) if q.id == question_id), 0)
     # Enforce a max limit of 3 lookups
     if lookup_count >= 3:
@@ -54,9 +56,11 @@ def start_lookup(request, story, question_id):
     Increments lookup count for a specific question and user.
     Redirects to the story lookup page with appropriate time limit.
     """
-    question = get_object_or_404(PostReadingQuestion, id=question_id, story=story)
+    story_repo = ORMStoryRepository()
+    progress_repo = ORMProgressRepository()
+    question = story_repo.get_post_reading_question(question_id, story=story)
     # Fetch or create progress record for the student
-    progress, _ = Progress.objects.get_or_create(student=request.user, read_story=story)
+    progress, _ = progress_repo.get_or_create_progress(request.user, story)
     # Update and persist lookup count for this question
     lookups = progress.post_reading_lookups or {}
     current_count = lookups.get(str(question_id), 0)
@@ -66,7 +70,7 @@ def start_lookup(request, story, question_id):
     current_count += 1
     lookups[str(question_id)] = current_count
     progress.post_reading_lookups = lookups
-    progress.save()
+    progress_repo.save_progress(progress)
     # Compute redirect URL with appropriate time limit
     time_limit = LOOKUP_TIME_LIMITS.get(current_count, 60)
     return redirect(f"/story-lookup/{story.id}/?question_id={question_id}&time_limit={time_limit}")

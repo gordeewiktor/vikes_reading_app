@@ -2,7 +2,7 @@
 # --- Imports ---
 from django.shortcuts import render
 from django.urls import reverse
-from vikes_reading_app.models import Story
+from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 
 # --- Home Page View ---
 
@@ -13,18 +13,9 @@ def home(request):
     - Teachers see all stories, including drafts.
     Each story gets a role-specific link.
     """
+    repo = ORMStoryRepository()
     user = request.user
-
-    # Determine which stories to show based on role
-    if not user.is_authenticated or user.role == 'student':
-        # Only show published stories to students or unauthenticated users
-        stories = Story.objects.filter(status='published')
-    elif user.role == 'teacher':
-        # Teachers see all stories, including drafts
-        stories = Story.objects.all()
-    else:
-        # Other roles see no stories
-        stories = Story.objects.none()
+    stories = repo.list_home_stories(user)
 
     # Generate appropriate story URLs per user role
     def get_story_url(story):

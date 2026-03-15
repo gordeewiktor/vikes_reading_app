@@ -1,7 +1,8 @@
-from vikes_reading_app.models import PostReadingQuestion, PreReadingExercise
+from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 
 
 class ReadingFlowService:
+    story_repo = ORMStoryRepository()
     STAGE_TRANSITIONS = {
         'pre_reading_time': 'reading',
         'reading_time': 'reading',
@@ -51,12 +52,12 @@ class ReadingFlowService:
         if not progress or progress.is_empty:
             return 'pre_reading_read'
 
-        pre_total = PreReadingExercise.objects.filter(story=story).count()
+        pre_total = cls.story_repo.count_pre_reading_exercises(story)
         pre_answers = cls.get_pre_reading_answers(progress)
         if pre_total > 0 and len(pre_answers) < pre_total:
             return 'pre_reading_read'
 
-        post_total = PostReadingQuestion.objects.filter(story=story).count()
+        post_total = cls.story_repo.count_post_reading_questions(story)
         post_answers = cls.get_post_reading_answers(progress)
         if post_total > 0 and len(post_answers) == post_total:
             return 'post_reading_summary'
@@ -65,9 +66,9 @@ class ReadingFlowService:
 
     @classmethod
     def get_pre_reading_score(cls, progress, story):
-        exercises = PreReadingExercise.objects.filter(story=story)
+        exercises = cls.story_repo.list_pre_reading_exercises(story)
         answers = cls.get_pre_reading_answers(progress)
-        total = exercises.count()
+        total = len(exercises)
         correct = 0
 
         for exercise in exercises:

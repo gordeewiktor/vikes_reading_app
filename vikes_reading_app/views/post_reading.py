@@ -1,11 +1,12 @@
 # --- Django & Project Imports ---
 
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from vikes_reading_app.decorators import student_can_view_story, teacher_is_author
 from vikes_reading_app.forms import PostReadingQuestionForm
-from vikes_reading_app.models import PostReadingQuestion, Progress
+from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
+from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 from vikes_reading_app.services.reading_flow import ReadingFlowService
 
 
@@ -16,7 +17,8 @@ def get_post_reading_questions(story):
     Retrieve all post-reading questions for a given story, ordered by ID.
     """
     # Query and order all post-reading questions for this story
-    return list(PostReadingQuestion.objects.filter(story=story).order_by('id'))
+    repo = ORMStoryRepository()
+    return repo.list_post_reading_questions(story)
 
 
 # --- Teacher CRUD Views ---
@@ -27,13 +29,11 @@ def post_reading_create(request, story):
     """
     Allows the story author to add a new post-reading question to a story.
     """
+    repo = ORMStoryRepository()
     if request.method == "POST":
         form = PostReadingQuestionForm(request.POST)
         if form.is_valid():
-            question = form.save(commit=False)
-            question.story = story
-            question.save()
-
+            repo.create_post_reading_question(story, form.cleaned_data)
             return redirect('manage_questions', story_id=story.id)
 
     else:
@@ -47,12 +47,13 @@ def post_reading_edit(request, story, question_id):
     """
     Allows the story author to edit an existing post-reading question.
     """
-    question = get_object_or_404(PostReadingQuestion, id=question_id, story=story)
+    repo = ORMStoryRepository()
+    question = repo.get_post_reading_question(question_id, story=story)
 
     if request.method == "POST":
         form = PostReadingQuestionForm(request.POST, instance=question)
         if form.is_valid():
-            form.save()
+            repo.update_post_reading_question(question, form.cleaned_data)
             messages.success(request, "Question updated successfully!")
 
             return redirect('manage_questions', story_id=story.id)
@@ -72,11 +73,12 @@ def post_reading_delete(request, story, question_id):
     """
     Allows the story author to delete a post-reading question.
     """
-    question = get_object_or_404(PostReadingQuestion, id=question_id, story_id=story.id)
+    repo = ORMStoryRepository()
+    question = repo.get_post_reading_question(question_id, story=story)
     story = question.story
 
     if request.method == "POST":
-        question.delete()
+        repo.delete_post_reading_question(question)
         messages.success(request, "Question deleted successfully!")
 
         return redirect('manage_questions', story_id=story.id)
@@ -134,7 +136,9 @@ def post_reading_submit(request, story, question_id):
     Redirects to next question or summary.
     """
     # Get the specific question being answered
-    question = get_object_or_404(PostReadingQuestion, id=question_id, story=story)
+    story_repo = ORMStoryRepository()
+    progress_repo = ORMProgressRepository()
+    question = story_repo.get_post_reading_question(question_id, story=story)
 
     if request.method == "POST":
         try:
@@ -147,14 +151,11 @@ def post_reading_submit(request, story, question_id):
         is_correct = str(question.correct_option) == selected_answer_id
 
         # Get or create progress record for this student and story
-        progress, _ = Progress.objects.get_or_create(
-            student=request.user,
-            read_story=story,
-        )
+        progress, _ = progress_repo.get_or_create_progress(request.user, story)
 
         # Save the result of the current question
         ReadingFlowService.set_post_reading_answer(progress, question.id, is_correct)
-        progress.save()
+        progress_repo.save_progress(progress)
 
         # Get all questions again to determine the next one
         questions = get_post_reading_questions(story)
@@ -182,7 +183,8 @@ def post_reading_summary(request, story):
     questions = get_post_reading_questions(story)
 
     # Get the student's progress (answers and time)
-    progress = Progress.objects.filter(student=request.user, read_story=story).first()
+    progress_repo = ORMProgressRepository()
+    progress = progress_repo.get_progress_model(request.user, story)
     student_answers = ReadingFlowService.get_post_reading_answers(progress)
 
     correct_count = 0

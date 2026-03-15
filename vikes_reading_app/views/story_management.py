@@ -3,7 +3,6 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 from vikes_reading_app.decorators import teacher_required, teacher_is_author
 from vikes_reading_app.forms import StoryForm
-from vikes_reading_app.models import Story
 from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 
 
@@ -16,8 +15,8 @@ def my_stories(request):
     """
     Shows a list of stories authored by the currently logged-in user.
     """
-    # Filter stories so each teacher sees only their own authored stories
-    stories = Story.objects.filter(author=request.user)
+    repo = ORMStoryRepository()
+    stories = repo.list_author_stories(request.user)
     return render(request, 'vikes_reading_app/my_stories.html', {'stories': stories})
 
 

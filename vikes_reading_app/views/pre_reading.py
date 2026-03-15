@@ -1,13 +1,14 @@
 # --- Django Imports ---
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.urls import reverse
 
 # --- App Imports ---
 from vikes_reading_app.forms import PreReadingExerciseForm
-from vikes_reading_app.models import PreReadingExercise, Progress
 from vikes_reading_app.decorators import teacher_is_author, student_can_view_story
+from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
+from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 from vikes_reading_app.services.reading_flow import ReadingFlowService
 
 
@@ -20,12 +21,11 @@ def pre_reading_create(request, story):
     """
     Allows the story author to add a new pre-reading exercise to a story.
     """
+    repo = ORMStoryRepository()
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES)
         if form.is_valid():
-            exercise = form.save(commit=False)
-            exercise.story = story
-            exercise.save()
+            repo.create_pre_reading_exercise(story, form.cleaned_data)
             return redirect('manage_questions', story_id=story.id)
     else:
         form = PreReadingExerciseForm()
@@ -37,11 +37,12 @@ def pre_reading_edit(request, exercise_id, story):
     """
     Allows the story author to edit an existing pre-reading exercise.
     """
-    exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
+    repo = ORMStoryRepository()
+    exercise = repo.get_pre_reading_exercise(exercise_id)
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES, instance=exercise)
         if form.is_valid():
-            form.save()
+            repo.update_pre_reading_exercise(exercise, form.cleaned_data)
             return redirect('manage_questions', story_id=exercise.story.id)
     else:
         form = PreReadingExerciseForm(instance=exercise)
@@ -57,9 +58,10 @@ def pre_reading_delete(request, exercise_id):
     """
     Allows the story author to delete a pre-reading exercise.
     """
-    exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
+    repo = ORMStoryRepository()
+    exercise = repo.get_pre_reading_exercise(exercise_id)
     if request.method == "POST":
-        exercise.delete()
+        repo.delete_pre_reading_exercise(exercise)
         messages.success(request, "Exercise deleted successfully!")
         return redirect('manage_questions', story_id=exercise.story.id)
     return render(request, 'vikes_reading_app/pre_reading_delete.html', {'exercise': exercise})
@@ -75,12 +77,14 @@ def pre_reading_summary(request, story):
     Shows a summary of pre-reading exercise results for the student.
     Calculates the number of correct answers using Progress data.
     """
-    exercises = PreReadingExercise.objects.filter(story=story)
-    progress = Progress.objects.filter(student=request.user, read_story=story).first()
+    story_repo = ORMStoryRepository()
+    progress_repo = ORMProgressRepository()
+    exercises = story_repo.list_pre_reading_exercises(story)
+    progress = progress_repo.get_progress_model(request.user, story)
     answers = ReadingFlowService.get_pre_reading_answers(progress)
     completed_ids = {int(exercise_id) for exercise_id in answers.keys()}
 
-    if len(completed_ids) < exercises.count():
+    if len(completed_ids) < len(exercises):
         return redirect('pre_reading_read', story_id=story.id)
 
     correct_count = 0
@@ -100,7 +104,7 @@ def pre_reading_summary(request, story):
         'story': story,
         'questions': question_data,
         'correct_answers': correct_count,
-        'total_questions': exercises.count(),
+        'total_questions': len(exercises),
     }
     return render(request, 'vikes_reading_app/pre_reading_summary.html', context)
 
@@ -112,12 +116,14 @@ def pre_reading_read(request, story):
     Tracks which questions have been completed using Progress.
     Redirects to summary when all are completed.
     """
-    pre_reading_exercises = list(PreReadingExercise.objects.filter(story=story))
+    story_repo = ORMStoryRepository()
+    progress_repo = ORMProgressRepository()
+    pre_reading_exercises = story_repo.list_pre_reading_exercises(story)
     if not pre_reading_exercises:
         messages.info(request, "No pre-reading exercises available for this story.")
         return redirect('read_story', story_id=story.id)
 
-    progress = Progress.objects.filter(student=request.user, read_story=story).first()
+    progress = progress_repo.get_progress_model(request.user, story)
     answers = ReadingFlowService.get_pre_reading_answers(progress)
     completed_questions = {int(exercise_id) for exercise_id in answers.keys()}
 
@@ -142,7 +148,9 @@ def pre_reading_submit(request, story):
     Handles student submission of a pre-reading answer.
     Saves progress in the Progress model, returns JSON with result and next URL.
     """
-    pre_reading_exercises = list(PreReadingExercise.objects.filter(story=story))
+    story_repo = ORMStoryRepository()
+    progress_repo = ORMProgressRepository()
+    pre_reading_exercises = story_repo.list_pre_reading_exercises(story)
 
     if request.method == "POST":
         try:
@@ -151,7 +159,7 @@ def pre_reading_submit(request, story):
             return HttpResponseForbidden("Invalid exercise ID.")
 
         selected_answer = request.POST.get("selected_answer")
-        exercise = get_object_or_404(PreReadingExercise, id=exercise_id)
+        exercise = story_repo.get_pre_reading_exercise(exercise_id)
 
         if exercise.story != story:
             return HttpResponseForbidden("Exercise does not belong to this story.")
@@ -161,12 +169,9 @@ def pre_reading_submit(request, story):
             (selected_answer == exercise.option_2 and exercise.is_option_2_correct)
         )
 
-        progress, _ = Progress.objects.get_or_create(
-            student=request.user,
-            read_story=story,
-        )
+        progress, _ = progress_repo.get_or_create_progress(request.user, story)
         ReadingFlowService.set_pre_reading_answer(progress, exercise.id, selected_answer)
-        progress.save()
+        progress_repo.save_progress(progress)
 
         completed_questions = {
             int(exercise_id) for exercise_id in

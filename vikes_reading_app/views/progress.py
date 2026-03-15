@@ -3,10 +3,11 @@ import json
 
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.http import JsonResponse
 
-from vikes_reading_app.models import Progress, Story
+from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
+from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 from vikes_reading_app.services.reading_flow import ReadingFlowService
 
 
@@ -20,16 +21,17 @@ def _save_time(request, story_id, time_field):
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
     try:
+        story_repo = ORMStoryRepository()
+        progress_repo = ORMProgressRepository()
         data = json.loads(request.body)
         time_spent = data.get("time_spent", 0)
-        story = get_object_or_404(Story, id=story_id)
-        progress, _ = Progress.objects.update_or_create(
+        story = story_repo.get_story_by_id(story_id)
+        progress_repo.save_time(
             student=request.user,
-            read_story=story,
-            defaults={
-                time_field: time_spent,
-                'current_stage': ReadingFlowService.get_next_stage(time_field),
-            }
+            story=story,
+            time_field=time_field,
+            current_stage=ReadingFlowService.get_next_stage(time_field),
+            time_spent=time_spent,
         )
         return JsonResponse({"status": "success", "time_spent": time_spent})
     except Exception as e:
@@ -69,7 +71,9 @@ def reset_progress(request, story_id):
       - Deletes Progress record from DB
       - Redirects to start pre-reading again
     """
-    story = get_object_or_404(Story, id=story_id)
+    story_repo = ORMStoryRepository()
+    progress_repo = ORMProgressRepository()
+    story = story_repo.get_story_by_id(story_id)
 
     # Remove session-based pre-reading answers
     session_key = f'pre_reading_progress_{story_id}'
@@ -91,7 +95,7 @@ def reset_progress(request, story_id):
         del request.session[key]
 
     # Remove DB-based progress for this user/story
-    Progress.objects.filter(student=request.user, read_story=story).delete()
+    progress_repo.delete_progress(request.user, story)
 
     # Redirect to start pre-reading again
     return redirect('pre_reading_read', story_id=story_id)
