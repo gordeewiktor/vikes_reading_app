@@ -18,7 +18,7 @@ def get_session_progress(request, story_id):
 
 # ✅ Determine if a student should be redirected based on progress
 def should_redirect_student(progress, session_progress, story):
-    if not progress and not session_progress:
+    if progress.is_empty and not session_progress:
         return 'pre_reading_read'
 
     post_total = PostReadingQuestion.objects.filter(story=story).count()

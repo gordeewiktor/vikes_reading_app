@@ -1,8 +1,4 @@
-
-# --- Django Imports ---
 from django.shortcuts import render, redirect
-
-# --- App Imports ---
 from vikes_reading_app.decorators import student_can_view_story, teacher_is_author
 from vikes_reading_app.helpers import (
     get_post_reading_score,
@@ -11,6 +7,7 @@ from vikes_reading_app.helpers import (
     should_redirect_student,
 )
 from vikes_reading_app.models import PostReadingQuestion, PreReadingExercise, Progress, Story
+from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
 
 
 
@@ -52,8 +49,9 @@ def story_entry_point(request, story):
     to the next section (pre-reading, reading, or post-reading). If no redirection is needed,
     it shows a summary of their progress on this story.
     """
+    repo = ORMProgressRepository()
     # Retrieve the student's progress from the database
-    progress = Progress.objects.filter(student=request.user, read_story=story).first()
+    progress = repo.get_progress(student_id=request.user.id, story_id=story.id)
     # Retrieve session-based progress (for pre-reading)
     session_progress = get_session_progress(request, story.id)
 

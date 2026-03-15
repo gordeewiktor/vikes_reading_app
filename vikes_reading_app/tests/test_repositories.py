@@ -7,25 +7,20 @@ User = get_user_model()
 
 @pytest.mark.django_db
 def test_delete_story_with_related(published_story: Story, post_reading_question: PostReadingQuestion, two_pre_reading_exercises) -> None:
-    # --- Setup: create teacher user and story ---
    
     story = published_story
+    repo = ORMStoryRepository()
 
-    # --- Ensure they exist ---
     assert Story.objects.filter(id=story.id).exists()
     assert PreReadingExercise.objects.filter(story=story).exists()
     assert PostReadingQuestion.objects.filter(story=story).exists()
     assert Story.objects.count() == 1
 
-    # --- Call repository logic ---
-    repo = ORMStoryRepository()
     repo.delete_story_with_related(story.id)
 
-    # --- Verify story and related objects are deleted ---
     assert not Story.objects.filter(id=story.id).exists()
     assert not PreReadingExercise.objects.filter(story=story).exists()
     assert not PostReadingQuestion.objects.filter(story=story).exists()
-
 
 @pytest.mark.django_db
 def test_create_story(teacher_user):

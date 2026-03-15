@@ -59,3 +59,43 @@ def two_pre_reading_exercises(published_story):
         is_option_2_correct=True
     )
     return ex1, ex2
+
+@pytest.fixture
+def logged_in_client_teacher(client, teacher_user):
+    """Logs in a teacher user."""
+    client.login(username=teacher_user.username, password='pass')
+    return client
+
+@pytest.fixture
+def logged_in_client_student(client, student_user):
+    """Logs in a student user."""
+    client.login(username=student_user.username, password='pass')
+    return client
+
+@pytest.fixture
+def logged_in_client_intruder(client):
+    """Creates and logs in an intruder (unauthorized teacher)."""
+    intruder = User.objects.create_user(username='intruder', password='pass123', role='teacher')
+    client.login(username=intruder.username, password='pass123')
+    return client
+
+@pytest.fixture
+def base_story_data():
+    """Base data used for story creation."""
+    return {
+        'title': 'Valid Title',
+        'description': 'A story that makes sense.',
+        'content': 'This is actual content.',
+    }
+
+
+@pytest.fixture
+def draft_story(teacher_user):
+    """Creates a draft story hidden from students."""
+    return Story.objects.create(
+        title="Draft Story",
+        description="Hidden from students",
+        content="Once upon a draft time...",
+        author=teacher_user,
+        status="draft"
+    )
