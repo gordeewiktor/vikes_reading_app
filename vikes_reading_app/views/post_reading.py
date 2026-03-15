@@ -3,9 +3,9 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
-from vikes_reading_app.decorators import student_can_view_story, teacher_is_author, teacher_required
+from vikes_reading_app.decorators import student_can_view_story, teacher_is_author
 from vikes_reading_app.forms import PostReadingQuestionForm
-from vikes_reading_app.models import PostReadingQuestion, Progress, Story
+from vikes_reading_app.models import PostReadingQuestion, Progress
 
 
 # --- Utility Function ---
@@ -21,13 +21,11 @@ def get_post_reading_questions(story):
 # --- Teacher CRUD Views ---
 
 
-@teacher_required
-def post_reading_create(request, story_id):
+@teacher_is_author
+def post_reading_create(request, story):
     """
     Allows the story author to add a new post-reading question to a story.
     """
-    story = get_object_or_404(Story, id=story_id)
-
     if request.method == "POST":
         form = PostReadingQuestionForm(request.POST)
         if form.is_valid():

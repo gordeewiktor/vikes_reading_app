@@ -1,13 +1,9 @@
 from django.shortcuts import render, redirect
 from vikes_reading_app.decorators import student_can_view_story, teacher_is_author
-from vikes_reading_app.helpers import (
-    get_post_reading_score,
-    get_pre_reading_score,
-    get_session_progress,
-    should_redirect_student,
-)
+from vikes_reading_app.helpers import get_session_progress
 from vikes_reading_app.models import PostReadingQuestion, PreReadingExercise, Progress, Story
 from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
+from vikes_reading_app.services.reading_flow import ReadingFlowService
 
 
 
@@ -56,13 +52,13 @@ def story_entry_point(request, story):
     session_progress = get_session_progress(request, story.id)
 
     # Determine if the student should be redirected to another part of the app
-    redirect_target = should_redirect_student(progress, session_progress, story)
+    redirect_target = ReadingFlowService.get_resume_target(progress, session_progress, story)
     if redirect_target:
         return redirect(redirect_target, story_id=story.id)
 
     # Calculate pre-reading and post-reading scores
-    pre_correct, pre_total = get_pre_reading_score(request, story)
-    post_correct, post_total = get_post_reading_score(progress)
+    pre_correct, pre_total = ReadingFlowService.get_pre_reading_score(request, story)
+    post_correct, post_total = ReadingFlowService.get_post_reading_score(progress)
 
     # Render the entry point template with progress summary
     context = {

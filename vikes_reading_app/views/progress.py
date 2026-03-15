@@ -7,11 +7,12 @@ from django.shortcuts import get_object_or_404, redirect
 from django.http import JsonResponse
 
 from vikes_reading_app.models import Progress, Story
+from vikes_reading_app.services.reading_flow import ReadingFlowService
 
 
 # --- Helper Function ---
 
-def _save_time(request, story_id, time_field, next_stage):
+def _save_time(request, story_id, time_field):
     """
     Shared helper to save time progress for pre-reading, reading, or post-reading.
     Updates or creates a Progress record.
@@ -27,7 +28,7 @@ def _save_time(request, story_id, time_field, next_stage):
             read_story=story,
             defaults={
                 time_field: time_spent,
-                'current_stage': next_stage,
+                'current_stage': ReadingFlowService.get_next_stage(time_field),
             }
         )
         return JsonResponse({"status": "success", "time_spent": time_spent})
@@ -41,21 +42,21 @@ def _save_time(request, story_id, time_field, next_stage):
 @login_required
 def save_reading_time(request, story_id):
     """API endpoint to save reading time progress."""
-    return _save_time(request, story_id, 'reading_time', 'reading')
+    return _save_time(request, story_id, 'reading_time')
 
 
 @csrf_exempt
 @login_required
 def save_pre_reading_time(request, story_id):
     """API endpoint to save pre-reading time progress."""
-    return _save_time(request, story_id, 'pre_reading_time', 'reading')
+    return _save_time(request, story_id, 'pre_reading_time')
 
 
 @csrf_exempt
 @login_required
 def save_post_reading_time(request, story_id):
     """API endpoint to save post-reading time progress."""
-    return _save_time(request, story_id, 'post_reading_time', 'completed')
+    return _save_time(request, story_id, 'post_reading_time')
 
 
 # --- View for Resetting Progress ---

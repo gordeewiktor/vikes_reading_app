@@ -6,20 +6,19 @@ from django.urls import reverse
 
 # --- App Imports ---
 from vikes_reading_app.forms import PreReadingExerciseForm
-from vikes_reading_app.models import Story, PreReadingExercise
-from vikes_reading_app.decorators import teacher_is_author, student_can_view_story, teacher_required
+from vikes_reading_app.models import PreReadingExercise
+from vikes_reading_app.decorators import teacher_is_author, student_can_view_story
 
 
 # ========================
 # 📘 Pre-Reading: Teacher Views
 # ========================
 
-@teacher_required
-def pre_reading_create(request, story_id):
+@teacher_is_author
+def pre_reading_create(request, story):
     """
     Allows the story author to add a new pre-reading exercise to a story.
     """
-    story = get_object_or_404(Story, id=story_id)
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES)
         if form.is_valid():
