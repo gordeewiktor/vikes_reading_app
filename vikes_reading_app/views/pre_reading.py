@@ -6,8 +6,9 @@ from django.urls import reverse
 
 # --- App Imports ---
 from vikes_reading_app.forms import PreReadingExerciseForm
-from vikes_reading_app.models import PreReadingExercise
+from vikes_reading_app.models import PreReadingExercise, Progress
 from vikes_reading_app.decorators import teacher_is_author, student_can_view_story
+from vikes_reading_app.services.reading_flow import ReadingFlowService
 
 
 # ========================
@@ -72,12 +73,12 @@ def pre_reading_delete(request, exercise_id):
 def pre_reading_summary(request, story):
     """
     Shows a summary of pre-reading exercise results for the student.
-    Calculates the number of correct answers using session data.
+    Calculates the number of correct answers using Progress data.
     """
     exercises = PreReadingExercise.objects.filter(story=story)
-
-    session_key = f'pre_reading_progress_{story.id}'
-    completed_ids = request.session.get(session_key, [])
+    progress = Progress.objects.filter(student=request.user, read_story=story).first()
+    answers = ReadingFlowService.get_pre_reading_answers(progress)
+    completed_ids = {int(exercise_id) for exercise_id in answers.keys()}
 
     if len(completed_ids) < exercises.count():
         return redirect('pre_reading_read', story_id=story.id)
@@ -91,7 +92,7 @@ def pre_reading_summary(request, story):
             'correct_answer': correct_option,
         })
         if exercise.id in completed_ids:
-            selected = request.session.get(f'answer_{exercise.id}')
+            selected = answers.get(str(exercise.id))
             if selected == correct_option:
                 correct_count += 1
 
@@ -108,7 +109,7 @@ def pre_reading_summary(request, story):
 def pre_reading_read(request, story):
     """
     Displays pre-reading exercises to students, one at a time.
-    Tracks which questions have been completed using session.
+    Tracks which questions have been completed using Progress.
     Redirects to summary when all are completed.
     """
     pre_reading_exercises = list(PreReadingExercise.objects.filter(story=story))
@@ -116,8 +117,9 @@ def pre_reading_read(request, story):
         messages.info(request, "No pre-reading exercises available for this story.")
         return redirect('read_story', story_id=story.id)
 
-    session_key = f'pre_reading_progress_{story.id}'
-    completed_questions = request.session.get(session_key, [])
+    progress = Progress.objects.filter(student=request.user, read_story=story).first()
+    answers = ReadingFlowService.get_pre_reading_answers(progress)
+    completed_questions = {int(exercise_id) for exercise_id in answers.keys()}
 
     next_question = next(
         (q for q in pre_reading_exercises if q.id not in completed_questions),
@@ -138,7 +140,7 @@ def pre_reading_read(request, story):
 def pre_reading_submit(request, story):
     """
     Handles student submission of a pre-reading answer.
-    Saves progress and correctness in session, returns JSON with result and next URL.
+    Saves progress in the Progress model, returns JSON with result and next URL.
     """
     pre_reading_exercises = list(PreReadingExercise.objects.filter(story=story))
 
@@ -159,11 +161,17 @@ def pre_reading_submit(request, story):
             (selected_answer == exercise.option_2 and exercise.is_option_2_correct)
         )
 
-        session_key = f'pre_reading_progress_{story.id}'
-        completed_questions = request.session.get(session_key, [])
-        completed_questions.append(exercise.id)
-        request.session[session_key] = completed_questions
-        request.session[f'answer_{exercise.id}'] = selected_answer
+        progress, _ = Progress.objects.get_or_create(
+            student=request.user,
+            read_story=story,
+        )
+        ReadingFlowService.set_pre_reading_answer(progress, exercise.id, selected_answer)
+        progress.save()
+
+        completed_questions = {
+            int(exercise_id) for exercise_id in
+            ReadingFlowService.get_pre_reading_answers(progress).keys()
+        }
 
         next_question = next(
             (q for q in pre_reading_exercises if q.id not in completed_questions),

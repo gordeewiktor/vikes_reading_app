@@ -234,7 +234,7 @@ def test_teacher_profile_shows_students_with_stories(logged_in_client_teacher, p
 # 🧠 Student Pre-Reading Flow
 # ========================
 
-# 🚪 Student should be redirected to pre-reading if no session progress yet
+# 🚪 Student should be redirected to pre-reading if no stored progress yet
 @pytest.mark.django_db
 def test_student_redirected_to_pre_reading_if_no_progress(published_story, logged_in_client_student):
     url = reverse('story_entry_point', args=[published_story.id])
@@ -244,22 +244,45 @@ def test_student_redirected_to_pre_reading_if_no_progress(published_story, logge
 
 # ✅ Student is redirected to summary if all pre-reading questions are done
 @pytest.mark.django_db
-def test_student_redirected_to_summary_after_finishing_all_pre_reading(published_story, logged_in_client_student, two_pre_reading_exercises):
+def test_student_redirected_to_summary_after_finishing_all_pre_reading(
+    published_story, logged_in_client_student, student_user, two_pre_reading_exercises
+):
     ex1, ex2 = two_pre_reading_exercises
-    session = logged_in_client_student.session
-    session[f'pre_reading_progress_{published_story.id}'] = [ex1.id, ex2.id]
-    session.save()
+    Progress.objects.create(
+        student=student_user,
+        read_story=published_story,
+        score=0.0,
+        current_stage='pre_reading',
+        answers_given={
+            'pre_reading': {
+                str(ex1.id): ex1.option_1,
+                str(ex2.id): ex2.option_2,
+            },
+            'post_reading': {},
+        },
+    )
     response = logged_in_client_student.get(reverse('pre_reading_read', args=[published_story.id]))
     assert response.status_code == 302
     assert reverse('pre_reading_summary', args=[published_story.id]) in response.url
 
 # ⏭️ Student sees next unanswered question
 @pytest.mark.django_db
-def test_student_sees_next_pre_reading_question_if_not_all_done(published_story, logged_in_client_student, two_pre_reading_exercises):
+def test_student_sees_next_pre_reading_question_if_not_all_done(
+    published_story, logged_in_client_student, student_user, two_pre_reading_exercises
+):
     ex1, ex2 = two_pre_reading_exercises
-    session = logged_in_client_student.session
-    session[f'pre_reading_progress_{published_story.id}'] = [ex1.id]
-    session.save()
+    Progress.objects.create(
+        student=student_user,
+        read_story=published_story,
+        score=0.0,
+        current_stage='pre_reading',
+        answers_given={
+            'pre_reading': {
+                str(ex1.id): ex1.option_1,
+            },
+            'post_reading': {},
+        },
+    )
     url = reverse('pre_reading_read', args=[published_story.id])
     response = logged_in_client_student.get(url)
     assert response.status_code == 200
@@ -267,11 +290,22 @@ def test_student_sees_next_pre_reading_question_if_not_all_done(published_story,
 
 # ❌ Student should not see summary until all questions are answered
 @pytest.mark.django_db
-def test_student_cannot_access_summary_without_completing_all_questions(published_story, logged_in_client_student, two_pre_reading_exercises):
+def test_student_cannot_access_summary_without_completing_all_questions(
+    published_story, logged_in_client_student, student_user, two_pre_reading_exercises
+):
     ex1, ex2 = two_pre_reading_exercises
-    session = logged_in_client_student.session
-    session[f'pre_reading_progress_{published_story.id}'] = [ex1.id]  # not finished!
-    session.save()
+    Progress.objects.create(
+        student=student_user,
+        read_story=published_story,
+        score=0.0,
+        current_stage='pre_reading',
+        answers_given={
+            'pre_reading': {
+                str(ex1.id): ex1.option_1,
+            },
+            'post_reading': {},
+        },
+    )
     url = reverse('pre_reading_summary', args=[published_story.id])
     response = logged_in_client_student.get(url)
     assert response.status_code == 302

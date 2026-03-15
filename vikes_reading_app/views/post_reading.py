@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from vikes_reading_app.decorators import student_can_view_story, teacher_is_author
 from vikes_reading_app.forms import PostReadingQuestionForm
 from vikes_reading_app.models import PostReadingQuestion, Progress
+from vikes_reading_app.services.reading_flow import ReadingFlowService
 
 
 # --- Utility Function ---
@@ -152,9 +153,7 @@ def post_reading_submit(request, story, question_id):
         )
 
         # Save the result of the current question
-        answers = progress.answers_given or {}
-        answers[str(question.id)] = is_correct
-        progress.answers_given = answers
+        ReadingFlowService.set_post_reading_answer(progress, question.id, is_correct)
         progress.save()
 
         # Get all questions again to determine the next one
@@ -184,7 +183,7 @@ def post_reading_summary(request, story):
 
     # Get the student's progress (answers and time)
     progress = Progress.objects.filter(student=request.user, read_story=story).first()
-    student_answers = progress.answers_given if progress and progress.answers_given else {}
+    student_answers = ReadingFlowService.get_post_reading_answers(progress)
 
     correct_count = 0
     for question in questions:
