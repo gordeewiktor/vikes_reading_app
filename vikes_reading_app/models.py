@@ -60,6 +60,7 @@ class Progress(models.Model):
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE)  # Student reading the story
     read_story = models.ForeignKey(Story, on_delete=models.CASCADE)  # Story being read
     score = models.FloatField(
+        default=0,
         validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
     )  # Score achieved by the student
     answers_given = models.JSONField(default=dict)  # Answers provided by the student in exercises
