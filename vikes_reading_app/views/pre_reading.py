@@ -6,7 +6,7 @@ from django.urls import reverse
 
 # --- App Imports ---
 from vikes_reading_app.forms import PreReadingExerciseForm
-from vikes_reading_app.decorators import teacher_is_author, student_can_view_story
+from vikes_reading_app.decorators import teacher_is_author, teacher_required, student_can_view_story
 from vikes_reading_app.repositories.progress_repository_impl import ORMProgressRepository
 from vikes_reading_app.repositories.story_repository_impl import ORMStoryRepository
 from vikes_reading_app.services.reading_flow import ReadingFlowService
@@ -32,13 +32,16 @@ def pre_reading_create(request, story):
     return render(request, 'vikes_reading_app/pre_reading_create.html', {'form': form, 'story': story})
 
 
-@teacher_is_author
-def pre_reading_edit(request, exercise_id, story):
+@teacher_required
+def pre_reading_edit(request, exercise_id):
     """
     Allows the story author to edit an existing pre-reading exercise.
     """
     repo = ORMStoryRepository()
     exercise = repo.get_pre_reading_exercise(exercise_id)
+    story = exercise.story
+    if story.author != request.user:
+        return HttpResponseForbidden("You are not allowed to view this story.")
     if request.method == "POST":
         form = PreReadingExerciseForm(request.POST, request.FILES, instance=exercise)
         if form.is_valid():
@@ -53,13 +56,15 @@ def pre_reading_edit(request, exercise_id, story):
     })
 
 
-@teacher_is_author
+@teacher_required
 def pre_reading_delete(request, exercise_id):
     """
     Allows the story author to delete a pre-reading exercise.
     """
     repo = ORMStoryRepository()
     exercise = repo.get_pre_reading_exercise(exercise_id)
+    if exercise.story.author != request.user:
+        return HttpResponseForbidden("You are not allowed to view this story.")
     if request.method == "POST":
         repo.delete_pre_reading_exercise(exercise)
         messages.success(request, "Exercise deleted successfully!")
@@ -121,7 +126,7 @@ def pre_reading_read(request, story):
     pre_reading_exercises = story_repo.list_pre_reading_exercises(story)
     if not pre_reading_exercises:
         messages.info(request, "No pre-reading exercises available for this story.")
-        return redirect('read_story', story_id=story.id)
+        return redirect('story_read_student', story_id=story.id)
 
     progress = progress_repo.get_progress_model(request.user, story)
     answers = ReadingFlowService.get_pre_reading_answers(progress)

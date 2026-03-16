@@ -2,7 +2,6 @@
 import json
 
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import redirect
 from django.http import JsonResponse
 
@@ -40,21 +39,18 @@ def _save_time(request, story_id, time_field):
 
 # --- Views for Saving Progress ---
 
-@csrf_exempt
 @login_required
 def save_reading_time(request, story_id):
     """API endpoint to save reading time progress."""
     return _save_time(request, story_id, 'reading_time')
 
 
-@csrf_exempt
 @login_required
 def save_pre_reading_time(request, story_id):
     """API endpoint to save pre-reading time progress."""
     return _save_time(request, story_id, 'pre_reading_time')
 
 
-@csrf_exempt
 @login_required
 def save_post_reading_time(request, story_id):
     """API endpoint to save post-reading time progress."""
