@@ -42,9 +42,12 @@ class ReadingFlowService:
         progress.answers_given = answers
 
     @classmethod
-    def set_post_reading_answer(cls, progress, question_id, is_correct):
+    def set_post_reading_answer(cls, progress, question_id, selected_option, is_correct):
         answers = cls._normalized_answers(progress)
-        answers['post_reading'][str(question_id)] = is_correct
+        answers['post_reading'][str(question_id)] = {
+            'selected_option': selected_option,
+            'is_correct': is_correct,
+        }
         progress.answers_given = answers
 
     @classmethod
@@ -86,7 +89,10 @@ class ReadingFlowService:
         if not answers:
             return 0, 0
         total = len(answers)
-        correct = sum(1 for value in answers.values() if value)
+        correct = sum(
+            1 for value in answers.values()
+            if (value.get('is_correct', False) if isinstance(value, dict) else value)
+        )
         return correct, total
 
     @classmethod

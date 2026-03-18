@@ -143,9 +143,14 @@ def test_set_post_reading_answer_writes_into_post_reading_bucket_and_preserves_p
         },
     )
 
-    ReadingFlowService.set_post_reading_answer(progress, 77, True)
+    ReadingFlowService.set_post_reading_answer(progress, 77, '2', True)
 
     assert progress.answers_given == {
         'pre_reading': {'5': 'Blue'},
-        'post_reading': {'77': True},
+        'post_reading': {
+            '77': {
+                'selected_option': '2',
+                'is_correct': True,
+            },
+        },
     }

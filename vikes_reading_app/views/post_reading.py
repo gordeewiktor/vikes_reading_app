@@ -21,6 +21,15 @@ def get_post_reading_questions(story):
     return repo.list_post_reading_questions(story)
 
 
+def get_option_text(question, option_number):
+    return {
+        '1': question.option_1,
+        '2': question.option_2,
+        '3': question.option_3,
+        '4': question.option_4,
+    }.get(str(option_number))
+
+
 # --- Teacher CRUD Views ---
 
 
@@ -154,7 +163,12 @@ def post_reading_submit(request, story, question_id):
         progress, _ = progress_repo.get_or_create_progress(request.user, story)
 
         # Save the result of the current question
-        ReadingFlowService.set_post_reading_answer(progress, question.id, is_correct)
+        ReadingFlowService.set_post_reading_answer(
+            progress,
+            question.id,
+            selected_answer_id,
+            is_correct,
+        )
         progress_repo.save_progress(progress)
 
         # Get all questions again to determine the next one
@@ -188,17 +202,34 @@ def post_reading_summary(request, story):
     student_answers = ReadingFlowService.get_post_reading_answers(progress)
 
     correct_count = 0
+    question_summaries = []
     for question in questions:
-        # Tally correct answers
-        is_correct = student_answers.get(str(question.id), False)
+        answer_data = student_answers.get(str(question.id))
+        if isinstance(answer_data, dict):
+            selected_option = answer_data.get('selected_option')
+            is_correct = answer_data.get('is_correct', False)
+        else:
+            selected_option = None
+            is_correct = bool(answer_data)
+
         if is_correct:
             correct_count += 1
+
+        correct_answer = get_option_text(question, question.correct_option)
+        your_answer = get_option_text(question, selected_option) if selected_option else None
+        question_summaries.append({
+            'question_text': question.question_text,
+            'correct_answer': correct_answer,
+            'your_answer': your_answer or "(No answer)",
+            'is_correct': is_correct,
+            'explanation': question.explanation,
+        })
 
     total_questions = len(questions)
 
     context = {
         'story': story,
-        'questions': questions,
+        'question_summaries': question_summaries,
         'correct_answers': correct_count,
         'total_questions': total_questions,
         'post_reading_time': progress.post_reading_time if progress else 0,

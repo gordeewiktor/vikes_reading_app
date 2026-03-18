@@ -15,21 +15,12 @@
 
     {# Questions & Correct Answers Section - Display each question with correct answer and explanation #}
     <div class="summary-container">
-        {% for question in questions %}
+        {% for item in question_summaries %}
             <div class="question-summary">
-                <p><strong>Question {{ forloop.counter }}:</strong> {{ question.question_text }}</p>
-                <p><strong>Correct Answer:</strong>
-                    {% if question.correct_option == 1 %}
-                        {{ question.option_1 }}
-                    {% elif question.correct_option == 2 %}
-                        {{ question.option_2 }}
-                    {% elif question.correct_option == 3 %}
-                        {{ question.option_3 }}
-                    {% elif question.correct_option == 4 %}
-                        {{ question.option_4 }}
-                    {% endif %}
-                </p>
-                <p><strong>Explanation:</strong> {{ question.explanation }}</p>
+                <p><strong>Question {{ forloop.counter }}:</strong> {{ item.question_text }}</p>
+                <p><strong>Your Answer:</strong> {{ item.your_answer }} {% if item.is_correct %}✅{% else %}❌{% endif %}</p>
+                <p><strong>Correct Answer:</strong> {{ item.correct_answer }}</p>
+                <p><strong>Explanation:</strong> {{ item.explanation }}</p>
             </div>
             <hr>
         {% endfor %}

@@ -387,3 +387,88 @@ def test_story_lookup_renders_story_html_as_markup(logged_in_client_student, tea
     assert '<h2>Section Title</h2>' in content
     assert '<p>Hello world</p>' in content
     assert '&lt;h2&gt;Section Title&lt;/h2&gt;' not in content
+
+
+# ========================
+# 📘 Post-Reading Summary
+# ========================
+
+@pytest.mark.django_db
+def test_post_reading_summary_shows_student_answer_with_correct_emoji(
+    logged_in_client_student, student_user, published_story, post_reading_question
+):
+    Progress.objects.create(
+        student=student_user,
+        read_story=published_story,
+        score=0.0,
+        current_stage='post_reading',
+        answers_given={
+            'pre_reading': {},
+            'post_reading': {
+                str(post_reading_question.id): {
+                    'selected_option': '2',
+                    'is_correct': True,
+                },
+            },
+        },
+    )
+
+    response = logged_in_client_student.get(reverse('post_reading_summary', args=[published_story.id]))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert 'Your Answer:' in content
+    assert 'They lived happily ever after.' in content
+    assert '✅' in content
+
+
+@pytest.mark.django_db
+def test_post_reading_summary_shows_incorrect_answer_with_wrong_emoji(
+    logged_in_client_student, student_user, published_story, post_reading_question
+):
+    Progress.objects.create(
+        student=student_user,
+        read_story=published_story,
+        score=0.0,
+        current_stage='post_reading',
+        answers_given={
+            'pre_reading': {},
+            'post_reading': {
+                str(post_reading_question.id): {
+                    'selected_option': '1',
+                    'is_correct': False,
+                },
+            },
+        },
+    )
+
+    response = logged_in_client_student.get(reverse('post_reading_summary', args=[published_story.id]))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert 'Your Answer:' in content
+    assert 'They fought a dragon.' in content
+    assert '❌' in content
+
+
+@pytest.mark.django_db
+def test_post_reading_summary_shows_no_answer_when_missing(
+    logged_in_client_student, student_user, published_story, post_reading_question
+):
+    Progress.objects.create(
+        student=student_user,
+        read_story=published_story,
+        score=0.0,
+        current_stage='post_reading',
+        answers_given={
+            'pre_reading': {},
+            'post_reading': {},
+        },
+    )
+
+    response = logged_in_client_student.get(reverse('post_reading_summary', args=[published_story.id]))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert '(No answer)' in content
+    assert '❌' in content
