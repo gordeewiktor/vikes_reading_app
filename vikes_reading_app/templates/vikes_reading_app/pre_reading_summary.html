@@ -10,10 +10,11 @@
 
 <ul>
     {# List of pre-reading questions with the correct answers shown #}
-    {% for question in questions %}
+    {% for question in summary %}
         <li>
             <strong>{{ question.text }}</strong><br>
-            ✅ Correct Answer: <em>{{ question.correct_answer }}</em>
+            <strong>Your Answer:</strong> {{ question.selected_answer }} {% if question.is_correct %}✅{% else %}❌{% endif %}<br>
+            <strong>Correct Answer:</strong> <em>{{ question.correct_answer }}</em>
         </li>
     {% endfor %}
 </ul>

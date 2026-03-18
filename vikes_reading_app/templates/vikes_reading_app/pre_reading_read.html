@@ -65,7 +65,7 @@ Pre-Reading - {{ story.title }}
                         this.parentElement.style.color = "red"; // Wrong answer
                     }
 
-                    // Wait 3 seconds then move to next question
+                    // Wait briefly so the student can see the feedback before moving on
                     setTimeout(() => {
                         window.location.href = data.next_url;
                     }, 1000);

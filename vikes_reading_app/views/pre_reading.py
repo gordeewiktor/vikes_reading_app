@@ -96,18 +96,20 @@ def pre_reading_summary(request, story):
     question_data = []
     for exercise in exercises:
         correct_option = exercise.option_1 if exercise.is_option_1_correct else exercise.option_2
+        selected = answers.get(str(exercise.id))
+        is_correct = selected == correct_option
         question_data.append({
             'text': exercise.question_text,
+            'selected_answer': selected or "(No answer)",
             'correct_answer': correct_option,
+            'is_correct': is_correct,
         })
-        if exercise.id in completed_ids:
-            selected = answers.get(str(exercise.id))
-            if selected == correct_option:
-                correct_count += 1
+        if is_correct:
+            correct_count += 1
 
     context = {
         'story': story,
-        'questions': question_data,
+        'summary': question_data,
         'correct_answers': correct_count,
         'total_questions': len(exercises),
     }
@@ -173,6 +175,7 @@ def pre_reading_submit(request, story):
             (selected_answer == exercise.option_1 and exercise.is_option_1_correct) or
             (selected_answer == exercise.option_2 and exercise.is_option_2_correct)
         )
+        correct_answer = exercise.option_1 if exercise.is_option_1_correct else exercise.option_2
 
         progress, _ = progress_repo.get_or_create_progress(request.user, story)
         ReadingFlowService.set_pre_reading_answer(progress, exercise.id, selected_answer)
@@ -194,6 +197,8 @@ def pre_reading_submit(request, story):
 
         return JsonResponse({
             "correct": is_correct,
+            "selected_answer": selected_answer,
+            "correct_answer": correct_answer,
             "next_url": next_url
         })
 
