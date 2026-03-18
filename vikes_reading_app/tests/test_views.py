@@ -351,3 +351,39 @@ def test_profile_detail_view_permissions(request, client_fixture, expected_statu
         assert target_user.username in content
     else:
         assert target_user.username not in content
+
+
+# ========================
+# 🔍 Story Lookup Rendering
+# ========================
+
+@pytest.mark.django_db
+def test_story_lookup_renders_story_html_as_markup(logged_in_client_student, teacher_user):
+    story = Story.objects.create(
+        title='HTML Story',
+        description='Rich text story',
+        content='<h2>Section Title</h2><p>Hello world</p>',
+        author=teacher_user,
+        status='published',
+    )
+    question = PostReadingQuestion.objects.create(
+        story=story,
+        question_text='What did you see?',
+        option_1='A heading',
+        option_2='Nothing',
+        option_3='A table',
+        option_4='A chart',
+        correct_option=1,
+        explanation='The story includes a heading.',
+    )
+
+    response = logged_in_client_student.get(
+        reverse('story_lookup', args=[story.id]),
+        {'question_id': question.id},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert '<h2>Section Title</h2>' in content
+    assert '<p>Hello world</p>' in content
+    assert '&lt;h2&gt;Section Title&lt;/h2&gt;' not in content

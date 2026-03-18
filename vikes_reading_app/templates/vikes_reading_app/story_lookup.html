@@ -12,7 +12,7 @@ Story Lookup - "{{ story.title }}"
 
         <div class="story-content">
             <h2>{{ story.title }}</h2>
-            <p>{{ story.content|linebreaks }}</p>
+            {{ story.content|safe }}
         </div>
     </section>
 
