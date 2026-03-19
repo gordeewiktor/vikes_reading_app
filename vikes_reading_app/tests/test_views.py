@@ -210,6 +210,13 @@ def test_story_read_student_access(request, published_story, client_fixture, exp
     if response.status_code == 200:
         assert b'Once upon a published time...' in response.content
 
+
+@pytest.mark.django_db
+def test_student_cannot_access_draft_story_via_student_routes(logged_in_client_student, draft_story):
+    response = logged_in_client_student.get(reverse('story_read_student', args=[draft_story.id]))
+
+    assert response.status_code == 403
+
 # ✅ Teacher sees students and their read stories on profile page
 @pytest.mark.django_db
 def test_teacher_profile_shows_students_with_stories(logged_in_client_teacher, published_story):

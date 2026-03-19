@@ -60,5 +60,7 @@ def student_can_view_story(view_func):
         if user.role != 'student':
             return HttpResponseForbidden("Access denied: Only students can view this page.")
         story = repo.get_story_by_id(story_id)
+        if story.status != 'published':
+            return HttpResponseForbidden("Access denied: This story is not available.")
         return view_func(request, story=story, *args, **kwargs)
     return _wrapped_view

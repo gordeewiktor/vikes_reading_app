@@ -82,6 +82,14 @@ class Progress(models.Model):
     def __str__(self):
         return f"{self.student.username} - {self.read_story.title} - {self.current_stage}"
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'read_story'],
+                name='unique_progress_per_student_story',
+            ),
+        ]
+
 
 # Model holding pre-reading exercises linked to a story
 class PreReadingExercise(models.Model):

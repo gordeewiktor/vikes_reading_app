@@ -1,6 +1,7 @@
 # --- Imports and Model Setup ---
 
 import pytest
+from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from vikes_reading_app.models import (
@@ -177,6 +178,18 @@ def test_progress_str(create_user, create_story, username, story_title, expected
         score=50,
     )
     assert str(progress) == expected_str
+
+
+@pytest.mark.django_db
+def test_progress_is_unique_per_student_and_story(create_user, create_story):
+    student = create_user(username="unique_student", role="student")
+    teacher = create_user(username="unique_teacher", role="teacher")
+    story = create_story(title="Unique Story", author=teacher)
+
+    Progress.objects.create(student=student, read_story=story, score=0)
+
+    with pytest.raises(IntegrityError):
+        Progress.objects.create(student=student, read_story=story, score=10)
 
 # ================================
 # 🎧 PreReadingExercise Model Tests
