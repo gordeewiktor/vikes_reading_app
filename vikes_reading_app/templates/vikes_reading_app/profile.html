@@ -33,17 +33,38 @@
         </fieldset>
     </form>
     {# Student Progress Section - Shown only for teachers, lists all students and their story progress #}
-    {% if students_with_stories %}
+    {% if students_with_stories is not None %}
         <h2>Your Students</h2>
-        {% for entry in students_with_stories %}
-            <h3>{{ entry.student.username }}</h3>
-            <ul>
-                {% for title in entry.story_titles %}
-                    <li>{{ title }}</li>
-                {% endfor %}
-            </ul>
-            <a href="{% url 'profile_detail' entry.student.id %}">View Details</a>
-            <hr>
-        {% endfor %}
+        {% if students_with_stories %}
+            <table class="story-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Student Name</th>
+                        <th scope="col">Stories Started</th>
+                        <th scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in students_with_stories %}
+                        <tr>
+                            <td>{{ entry.student.username }}</td>
+                            <td>
+                                {% if entry.story_titles %}
+                                    {{ entry.story_titles|length }}<br>
+                                    {{ entry.story_titles|join:", " }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'profile_detail' entry.student.id %}" class="btn btn-primary">View Details</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No students yet.</p>
+        {% endif %}
     {% endif %}
 {% endblock %}

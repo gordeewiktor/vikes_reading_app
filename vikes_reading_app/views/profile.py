@@ -78,10 +78,20 @@ def profile_detail(request, student_id):
     student = user_repo.get_student(student_id)
     teacher_stories = story_repo.list_author_stories(request.user)
     progress_records = progress_repo.list_progress_records(student, teacher_stories)
+    story_progress = [
+        {
+            'story': record.read_story,
+            'pre_reading': record.get_pre_reading_stats(),
+            'reading_time': record.reading_time,
+            'post_reading': record.get_post_reading_stats(),
+            'overall': record.get_overall_stats(),
+        }
+        for record in progress_records
+    ]
 
     # Prepare context for rendering detailed progress page
     context = {
         'student': student,
-        'progress_records': progress_records,
+        'story_progress': story_progress,
     }
     return render(request, 'vikes_reading_app/profile_detail.html', context)

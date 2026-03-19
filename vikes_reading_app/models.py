@@ -82,6 +82,77 @@ class Progress(models.Model):
     def __str__(self):
         return f"{self.student.username} - {self.read_story.title} - {self.current_stage}"
 
+    def _normalized_answers(self):
+        answers = self.answers_given or {}
+        if 'pre_reading' in answers or 'post_reading' in answers:
+            return {
+                'pre_reading': answers.get('pre_reading', {}),
+                'post_reading': answers.get('post_reading', {}),
+            }
+        return {
+            'pre_reading': {},
+            'post_reading': answers,
+        }
+
+    @staticmethod
+    def _percentage(correct, total):
+        if total == 0:
+            return None
+        return round((correct / total) * 100)
+
+    def get_pre_reading_stats(self):
+        answers = self._normalized_answers()['pre_reading']
+        exercises = self.read_story.pre_reading_exercises.all()
+        total = exercises.count()
+        correct = 0
+
+        for exercise in exercises:
+            selected = answers.get(str(exercise.id))
+            correct_answer = exercise.option_1 if exercise.is_option_1_correct else exercise.option_2
+            if selected == correct_answer:
+                correct += 1
+
+        return {
+            'correct': correct,
+            'total': total,
+            'percentage': self._percentage(correct, total),
+            'time_spent': self.pre_reading_time,
+        }
+
+    def get_post_reading_stats(self):
+        answers = self._normalized_answers()['post_reading']
+        questions = self.read_story.post_reading_questions.all()
+        total = questions.count()
+        correct = 0
+
+        for question in questions:
+            answer_data = answers.get(str(question.id))
+            if isinstance(answer_data, dict):
+                is_correct = answer_data.get('is_correct', False)
+            else:
+                is_correct = bool(answer_data)
+            if is_correct:
+                correct += 1
+
+        return {
+            'correct': correct,
+            'total': total,
+            'percentage': self._percentage(correct, total),
+            'time_spent': self.post_reading_time,
+        }
+
+    def get_overall_stats(self):
+        pre_stats = self.get_pre_reading_stats()
+        post_stats = self.get_post_reading_stats()
+        correct = pre_stats['correct'] + post_stats['correct']
+        total = pre_stats['total'] + post_stats['total']
+
+        return {
+            'correct': correct,
+            'total': total,
+            'percentage': self._percentage(correct, total),
+        }
+
     class Meta:
         constraints = [
             models.UniqueConstraint(

@@ -63,4 +63,7 @@ class ORMProgressRepository(ProgressRepository):
         return Progress.objects.filter(
             student=student,
             read_story__in=stories
-        ).select_related('read_story')
+        ).select_related('read_story').prefetch_related(
+            'read_story__pre_reading_exercises',
+            'read_story__post_reading_questions',
+        )

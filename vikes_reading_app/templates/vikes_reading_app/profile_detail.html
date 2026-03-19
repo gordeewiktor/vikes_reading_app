@@ -8,39 +8,78 @@ Student Profile - Vike's Reading
 {% block content %}
 <h1>Profile: {{ student.username }}</h1>
 
-{% if progress_records %}
+{% if story_progress %}
     <table class="story-table">
         <thead>
             <tr>
-                <th scope="col">Story</th>
-                <th scope="col">Pre-Reading</th>
+                <th scope="col">Story Title</th>
+                <th scope="col">Pre-reading</th>
                 <th scope="col">Reading</th>
-                <th scope="col">Post-Reading</th>
+                <th scope="col">Post-reading</th>
+                <th scope="col">Overall</th>
             </tr>
         </thead>
         <tbody>
-            {% for record in progress_records %}
+            {% for item in story_progress %}
                 <tr>
-                    <td>{{ record.story.title }}</td>
+                    <td>{{ item.story.title }}</td>
                     <td>
-                        {% if record.pre_reading_time %}
-                            {{ record.pre_reading_score }} correct<br>
-                            {{ record.pre_reading_time }}s
+                        <strong>Pre-reading:</strong><br>
+                        <strong>Correct:</strong>
+                        {% if item.pre_reading.total %}
+                            {{ item.pre_reading.correct }}/{{ item.pre_reading.total }} correct
+                        {% else %}
+                            —
+                        {% endif %}
+                        <br>
+                        <strong>Score:</strong>
+                        {% if item.pre_reading.percentage is not None %}
+                            ({{ item.pre_reading.percentage }}%)
+                        {% else %}
+                            —
+                        {% endif %}
+                        <br>
+                        <strong>Time:</strong>
+                        {% if item.pre_reading.time_spent %}
+                            {{ item.pre_reading.time_spent }}s
                         {% else %}
                             —
                         {% endif %}
                     </td>
                     <td>
-                        {% if record.reading_time %}
-                            {{ record.reading_time }}s
+                        {% if item.reading_time %}
+                            Reading: ⏱ {{ item.reading_time }}s
                         {% else %}
                             —
                         {% endif %}
                     </td>
                     <td>
-                        {% if record.post_reading_time %}
-                            {{ record.post_reading_score }} correct<br>
-                            {{ record.post_reading_time }}s
+                        <strong>Post-reading:</strong><br>
+                        <strong>Correct:</strong>
+                        {% if item.post_reading.total %}
+                            {{ item.post_reading.correct }}/{{ item.post_reading.total }} correct
+                        {% else %}
+                            —
+                        {% endif %}
+                        <br>
+                        <strong>Score:</strong>
+                        {% if item.post_reading.percentage is not None %}
+                            ({{ item.post_reading.percentage }}%)
+                        {% else %}
+                            —
+                        {% endif %}
+                        <br>
+                        <strong>Time:</strong>
+                        {% if item.post_reading.time_spent %}
+                            {{ item.post_reading.time_spent }}s
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>Overall:</strong><br>
+                        {% if item.overall.percentage is not None %}
+                            {{ item.overall.percentage }}%
                         {% else %}
                             —
                         {% endif %}

@@ -360,6 +360,77 @@ def test_profile_detail_view_permissions(request, client_fixture, expected_statu
         assert target_user.username not in content
 
 
+@pytest.mark.django_db
+def test_profile_detail_shows_dynamic_scores_and_times_for_teacher(logged_in_client_teacher, student_user, published_story):
+    exercise_1 = PreReadingExercise.objects.create(
+        story=published_story,
+        question_text='Pre 1?',
+        option_1='Luck',
+        option_2='Duck',
+        is_option_1_correct=True,
+    )
+    exercise_2 = PreReadingExercise.objects.create(
+        story=published_story,
+        question_text='Pre 2?',
+        option_1='Sun',
+        option_2='Moon',
+        is_option_2_correct=True,
+    )
+    question_1 = PostReadingQuestion.objects.create(
+        story=published_story,
+        question_text='Post 1?',
+        option_1='One',
+        option_2='Two',
+        option_3='Three',
+        option_4='Four',
+        correct_option=2,
+        explanation='Two is correct.',
+    )
+    question_2 = PostReadingQuestion.objects.create(
+        story=published_story,
+        question_text='Post 2?',
+        option_1='Red',
+        option_2='Blue',
+        option_3='Green',
+        option_4='Yellow',
+        correct_option=4,
+        explanation='Yellow is correct.',
+    )
+    Progress.objects.create(
+        student=student_user,
+        read_story=published_story,
+        score=0.0,
+        current_stage='completed',
+        reading_time=60,
+        pre_reading_time=35,
+        post_reading_time=50,
+        answers_given={
+            'pre_reading': {
+                str(exercise_1.id): 'Luck',
+                str(exercise_2.id): 'Sun',
+            },
+            'post_reading': {
+                str(question_1.id): {'selected_option': '2', 'is_correct': True},
+                str(question_2.id): {'selected_option': '1', 'is_correct': False},
+            },
+        },
+    )
+
+    response = logged_in_client_teacher.get(reverse('profile_detail', args=[student_user.id]))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert 'Published Story' in content
+    assert 'Pre-reading:' in content
+    assert '1/2 correct' in content
+    assert '(50%)' in content
+    assert '35s' in content
+    assert 'Reading: ⏱ 60s' in content
+    assert 'Post-reading:' in content
+    assert '50s' in content
+    assert 'Overall:' in content
+
+
 # ========================
 # 🔍 Story Lookup Rendering
 # ========================
