@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
-from importlib.util import find_spec
+from importlib import import_module
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -19,13 +19,20 @@ from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DOTENV_INSTALLED = find_spec("dotenv") is not None
-WHITENOISE_INSTALLED = find_spec("whitenoise") is not None
+try:
+    load_dotenv = import_module("dotenv").load_dotenv
+except ModuleNotFoundError:
+    load_dotenv = None
 
-if DOTENV_INSTALLED:
-    from dotenv import load_dotenv
-
+if load_dotenv is not None:
     load_dotenv(BASE_DIR / ".env")
+
+try:
+    import_module("whitenoise")
+except ModuleNotFoundError:
+    WHITENOISE_INSTALLED = False
+else:
+    WHITENOISE_INSTALLED = True
 
 
 def get_bool_env(name, default=False):
