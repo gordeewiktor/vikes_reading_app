@@ -14,26 +14,53 @@ import os
 from importlib.util import find_spec
 from pathlib import Path
 
-WHITENOISE_INSTALLED = find_spec("whitenoise") is not None
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+DOTENV_INSTALLED = find_spec("dotenv") is not None
+WHITENOISE_INSTALLED = find_spec("whitenoise") is not None
+
+if DOTENV_INSTALLED:
+    from dotenv import load_dotenv
+
+    load_dotenv(BASE_DIR / ".env")
+
+
+def get_bool_env(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def get_list_env(name):
+    return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-dev-key")
+DJANGO_ENV = os.environ.get("DJANGO_ENV", "development").strip().lower()
+DEBUG = get_bool_env("DJANGO_DEBUG", default=False)
+IS_LOCAL_DEVELOPMENT = DJANGO_ENV == "development"
+IS_PRODUCTION = DJANGO_ENV == "production"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
+if IS_LOCAL_DEVELOPMENT:
+    SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-local-dev-key")
+    ALLOWED_HOSTS = get_list_env("DJANGO_ALLOWED_HOSTS") or ["localhost", "127.0.0.1"]
+else:
+    SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+    if not SECRET_KEY:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set outside local development.")
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-    if host.strip()
-]
+    ALLOWED_HOSTS = get_list_env("DJANGO_ALLOWED_HOSTS")
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set outside local development.")
+
+    if IS_PRODUCTION and DEBUG:
+        raise ImproperlyConfigured("DJANGO_DEBUG must be False in production.")
 
 
 # Application definition
@@ -138,8 +165,8 @@ STATICFILES_DIRS = [
 if WHITENOISE_INSTALLED:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-if not DEBUG:
-    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "True") == "True"
+if IS_PRODUCTION:
+    SECURE_SSL_REDIRECT = get_bool_env("DJANGO_SECURE_SSL_REDIRECT", default=True)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True

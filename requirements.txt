@@ -3,3 +3,4 @@ asgiref>=3.8.1
 sqlparse>=0.5.2
 gunicorn>=23.0.0
 whitenoise>=6.8.2
+python-dotenv>=1.0.1
