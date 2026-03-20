@@ -1,6 +1,7 @@
 asgiref==3.9.1
 dj-database-url==3.1.2
 Django==5.2.4
+gunicorn==25.1.0
 iniconfig==2.1.0
 mypy==1.17.1
 mypy_extensions==1.1.0
