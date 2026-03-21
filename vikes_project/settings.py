@@ -169,7 +169,7 @@ STATICFILES_DIRS = [
 ]
 
 if WHITENOISE_INSTALLED:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 if IS_PRODUCTION:
     SECURE_SSL_REDIRECT = get_bool_env("DJANGO_SECURE_SSL_REDIRECT", default=True)
