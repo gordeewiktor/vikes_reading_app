@@ -1,108 +1,62 @@
-# Vike’s Reading App
-**A Django web application for structured reading activities and student progress tracking.**
+# Vike's Reading App
+
+Vike's Reading App is a Django-based web application designed to help students practice reading in a structured way.
+
+Teachers create stories with pre-reading and post-reading questions, and students go through a guided learning flow while the app tracks their progress and time spent.
 
 ---
 
-## 📚 Overview
-**Vike’s Reading App** is an educational platform that helps **teachers assign structured reading tasks** and **track student progress** across three key stages:
+## 🧠 How it works
 
-1️⃣ **Pre-Reading** — Interactive exercises with audio and automatic progress tracking.  
-2️⃣ **Reading** — Reading with time tracking.  
-3️⃣ **Post-Reading** — Comprehension questions, limited story lookups (30s, 45s, 60s), and progress tracking.
+The app is built around a simple 3-step process:
 
----
+- **Pre-reading** – students answer short questions and get immediate feedback  
+- **Reading** – students read the story while the app tracks their time  
+- **Post-reading** – students complete comprehension questions, with limited access to the story  
 
-## 👨‍🏫 User Roles & Permissions
-| Role      | Actions                               |
-|-----------|---------------------------------------|
-| **Student** | Register, complete reading tasks, track personal progress |
-| **Teacher** | Manage stories, view detailed student progress |
-
-- **Teachers** are created via Django admin (`is_staff=True`).  
-- **Students** self-register through the app.
-
-Access control is enforced through **custom decorators** like:
-- `@teacher_required`
-- `@teacher_is_author`
-- `@student_can_view_story`
+This flow is designed to simulate real classroom reading activities.
 
 ---
 
-## 🔧 How to Run Locally
+## ⚙️ Features
+
+- User authentication with a custom user model  
+- Two roles: **teacher** and **student**  
+- Teachers can:
+  - Create, edit, and delete stories  
+  - Add pre-reading and post-reading questions  
+  - View student progress  
+- Students can:
+  - Register and log in  
+  - Choose a story and complete the full reading cycle  
+- Pre-reading questions with two answer options and optional audio  
+- Post-reading multiple-choice questions with explanations  
+- Limited story lookup during post-reading (time-restricted per question)  
+- Progress tracking per student and story (answers + time spent)  
+
+---
+
+## 🛠 Tech Stack
+
+- Python  
+- Django  
+- SQLite (default)  
+- Pytest  
+- Django templates, forms, and ORM  
+
+---
+
+## How to run locally
+
 ```bash
-# 1. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 2. Apply migrations
+# Apply migrations
 python manage.py migrate
 
-# 3. (Optional) Create a superuser
+# (Optional) Create admin user
 python manage.py createsuperuser
 
-# 4. Run the server
+# Run the server
 python manage.py runserver
-
-# 5. Open in browser
-http://127.0.0.1:8000/
-```
-
----
-
-## 🧑‍💻 Project Structure
-```
-vikes_reading_app/
-├── models.py
-├── forms.py
-├── decorators.py   # Role-based access control
-├── helpers.py      # Reusable helper functions
-├── urls.py         # App-level routing
-├── views/          # Modular views split by concern
-│   ├── __init__.py
-│   ├── auth.py
-│   ├── home.py
-│   ├── navigation.py
-│   ├── post_reading.py
-│   ├── pre_reading.py
-│   ├── profile.py
-│   ├── progress.py
-│   ├── questions.py
-│   ├── story_management.py
-│   └── story_read.py
-├── templates/vikes_reading_app/  # HTML templates
-├── static/                       # CSS, JS, static files
-├── media/                        # Uploaded audio files
-├── tests/                        # Pytest files
-│   ├── __init__.py
-│   ├── conftest.py
-│   ├── test_decorators.py
-│   ├── test_forms.py
-│   ├── test_models.py
-│   └── test_views.py
-```
-
-vikes_project/
-├── __init__.py
-├── asgi.py
-├── settings.py
-├── urls.py
-└── wsgi.py
-
----
-
-## ✅ Testing & Quality
-**All core features are covered with Pytest:**
-```bash
-pytest
-```
-- **94 tests, 100% passing**
-- Covers permissions, role access, CRUD, reading flows, and session logic.
-- Modular views ensure clean, maintainable architecture.
-
----
-
-## 🚀 Key Features for Employers
-- Django best practices (views split by responsibility, DRY code via helpers).
-- Role-based access enforced via custom decorators.
-- Clean session management for tracking reading progress.
-- Tested comprehensively with fixtures and parameterized tests.
-- Modular, production-ready structure for scalability.
